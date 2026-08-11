@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { priceManufacturerSale } from "../manufacturing";
+import { buildDetailedCogs, priceManufacturerSale, type CogsComponent } from "../manufacturing";
 import { roundMoney } from "../money";
 import { PricingEngineError } from "../types";
 
@@ -48,5 +48,52 @@ describe("priceManufacturerSale", () => {
     expect(Object.keys(r.trace.inputs).length).toBeGreaterThan(0);
     expect(r.trace.steps.length).toBeGreaterThan(0);
     expect(r.trace.output.equals(r.sellPricePerUnit)).toBe(true);
+  });
+});
+
+describe("buildDetailedCogs — PRD §7", () => {
+  const components: CogsComponent[] = [
+    { name: "Active Ingredients", category: "formula", amountPerUnit: "1.20" },
+    { name: "Flavoring", category: "formula", amountPerUnit: "0.15" },
+    { name: "Bottle", category: "packaging", amountPerUnit: "0.42" },
+    { name: "Label", category: "packaging", amountPerUnit: "0.08" },
+    { name: "Direct Labor", category: "manufacturing", amountPerUnit: "1.10" },
+    { name: "QC & Testing", category: "manufacturing", amountPerUnit: "0.70" },
+  ];
+
+  it("sums each category and the total exactly", () => {
+    const r = buildDetailedCogs(components);
+    expect(r.materialCostPerUnit.equals("1.35")).toBe(true);
+    expect(r.packagingCostPerUnit.equals("0.5")).toBe(true);
+    expect(r.manufacturingCostPerUnit.equals("1.8")).toBe(true);
+    expect(r.totalCogsPerUnit.equals("3.65")).toBe(true);
+  });
+
+  it("feeds directly into manufacturer pricing", () => {
+    const cogs = buildDetailedCogs(components);
+    const priced = priceManufacturerSale({
+      cogsPerUnit: cogs.totalCogsPerUnit,
+      marginSpec: { basis: "margin", rate: "0.20" },
+    });
+    expect(priced.sellPricePerUnit.equals("4.5625")).toBe(true);
+  });
+
+  it("rejects negative component amounts", () => {
+    expect(() =>
+      buildDetailedCogs([{ name: "Rebate", category: "formula", amountPerUnit: "-0.10" }]),
+    ).toThrow(PricingEngineError);
+  });
+
+  it("returns a §67 trace with the three category subtotals", () => {
+    const r = buildDetailedCogs(components);
+    const labels = r.trace.steps.map((s) => s.label);
+    expect(labels).toContain("Material Cost");
+    expect(labels).toContain("Packaging Cost");
+    expect(labels).toContain("Manufacturing Cost");
+    expect(r.trace.output.equals("3.65")).toBe(true);
+  });
+
+  it("an empty component list totals to zero", () => {
+    expect(buildDetailedCogs([]).totalCogsPerUnit.isZero()).toBe(true);
   });
 });

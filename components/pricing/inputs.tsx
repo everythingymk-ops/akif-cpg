@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
  * they can change. Rates are stored as decimal fractions (PRD §61) but typed
  * as percentage points.
  */
-const EDITABLE_CLASSES = cn(
+export const EDITABLE_CLASSES = cn(
   "border-blue-300 bg-blue-50/60 text-blue-950 focus-visible:border-blue-400 focus-visible:ring-blue-400/40",
   "dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-100",
 );

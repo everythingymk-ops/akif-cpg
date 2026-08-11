@@ -53,7 +53,7 @@ Update the Status column when a step is completed and verified. One step per run
 | 3 | Contribution + gross-to-net, reverse pricing (max brand invoice / max landed cost / max COGS), price gap, break-even engine + tests | done (2026-08-11) |
 | 4 | Sensitivity (1-variable tables + 2-variable matrix), validation warnings (§71), Advisor rule engine (numeric insights, Critical/Warning/Opportunity) + tests | done (2026-08-11) |
 | 5 | UI shell + main pricing screen: top bar, summary cards, left assumption accordions, center price waterfall, right Advisor panel; live debounced recalc; editable-vs-calculated styling; wired to an in-memory demo product | done (2026-08-11) |
-| 6 | Product setup: onboarding questionnaire (business structures A–E), product creation, simple + detailed COGS, channel routes A–E with automatic field visibility | not started |
+| 6 | Product setup: onboarding questionnaire (business structures A–E), product creation, simple + detailed COGS, channel routes A–E with automatic field visibility | done (2026-08-11) |
 | 7 | Promotion Planner UI + trade-spend coach + editable benchmark bands (§24, §77–78) | not started |
 | 8 | Reverse-pricing UI, sensitivity UI + scenario matrix, "Improve Economics" (§73), dollar allocation view (§43) | not started |
 | 9 | Scenarios: save/duplicate/compare, assumption audit trail, localStorage persistence layer behind repository interface | not started |

@@ -1,7 +1,8 @@
 "use client";
 
-import type { ComputedScenario } from "@/lib/scenario/computeScenario";
 import type { ScenarioAssumptions } from "@/lib/scenario/assumptions";
+import type { ComputedScenario } from "@/lib/scenario/computeScenario";
+import type { SectionVisibility } from "@/lib/scenario/product";
 import { formatMoney, formatPercent } from "@/lib/scenario/format";
 import {
   Accordion,
@@ -10,22 +11,28 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { BasisSelect, CalculatedValue, MoneyField, PercentField } from "./inputs";
 
 interface AssumptionsPanelProps {
   assumptions: ScenarioAssumptions;
   scenario: ComputedScenario | null;
+  /** Route-driven section visibility (PRD §12): hidden sections disappear. */
+  visibility: SectionVisibility;
   onChange: (patch: Partial<ScenarioAssumptions>) => void;
 }
 
 /**
  * Left panel (PRD §58): editable assumptions in accordion sections with
  * progressive disclosure (PRD §94) — the default-open sections expose the
- * ~10 assumptions that matter most; the rest expand on demand.
+ * ~10 assumptions that matter most; the rest expand on demand. Sections the
+ * selected route does not use are not rendered at all (PRD §12, §3E).
  */
-export function AssumptionsPanel({ assumptions, scenario, onChange }: AssumptionsPanelProps) {
+export function AssumptionsPanel({
+  assumptions,
+  scenario,
+  visibility,
+  onChange,
+}: AssumptionsPanelProps) {
   return (
     <Card className="gap-3 py-4">
       <CardHeader className="px-4">
@@ -56,157 +63,155 @@ export function AssumptionsPanel({ assumptions, scenario, onChange }: Assumption
               <CalculatedValue label="Product">{assumptions.productName}</CalculatedValue>
               <CalculatedValue label="SKU">{assumptions.sku}</CalculatedValue>
               <p className="text-xs text-muted-foreground">
-                Product setup and detailed COGS arrive with the product-creation step.
+                Edit product identity and COGS mode by creating a product via New product.
               </p>
             </AccordionContent>
           </AccordionItem>
 
-          <AccordionItem value="manufacturing">
-            <AccordionTrigger className="py-3 text-sm">Manufacturing</AccordionTrigger>
-            <AccordionContent className="space-y-3 pb-3">
-              <MoneyField
-                label="Manufacturing COGS / unit"
-                value={assumptions.cogsPerUnit}
-                onChange={(cogsPerUnit) => onChange({ cogsPerUnit })}
-              />
-              <BasisSelect
-                label="Manufacturer margin basis"
-                value={assumptions.manufacturerMarginBasis}
-                onChange={(manufacturerMarginBasis) => onChange({ manufacturerMarginBasis })}
-              />
-              <PercentField
-                label={`Manufacturer ${assumptions.manufacturerMarginBasis}`}
-                rate={assumptions.manufacturerMarginRate}
-                onChange={(manufacturerMarginRate) => onChange({ manufacturerMarginRate })}
-              />
-              {scenario && (
-                <CalculatedValue label="Manufacturer sell price">
-                  {formatMoney(scenario.manufacturer.sellPricePerUnit)}
-                </CalculatedValue>
-              )}
-            </AccordionContent>
-          </AccordionItem>
-
-          <AccordionItem value="landed">
-            <AccordionTrigger className="py-3 text-sm">Landed cost</AccordionTrigger>
-            <AccordionContent className="space-y-3 pb-3">
-              <MoneyField
-                label="International freight / unit"
-                value={assumptions.internationalFreightPerUnit}
-                onChange={(internationalFreightPerUnit) => onChange({ internationalFreightPerUnit })}
-              />
-              <PercentField
-                label="Tariff (% of customs value)"
-                rate={assumptions.tariffRate}
-                onChange={(tariffRate) => onChange({ tariffRate })}
-                hint="Customs value equals the manufacturer purchase price on this screen. The tariff basis stays user-selectable in product setup."
-              />
-              <MoneyField
-                label="Domestic freight / unit"
-                value={assumptions.domesticFreightPerUnit}
-                onChange={(domesticFreightPerUnit) => onChange({ domesticFreightPerUnit })}
-              />
-              {scenario && (
-                <CalculatedValue label="Brand landed cost">
-                  {formatMoney(scenario.landed.landedCostPerUnit)}
-                </CalculatedValue>
-              )}
-            </AccordionContent>
-          </AccordionItem>
-
-          <AccordionItem value="commercial">
-            <AccordionTrigger className="py-3 text-sm">Commercial</AccordionTrigger>
-            <AccordionContent className="space-y-3 pb-3">
-              <PercentField
-                label="Broker commission (% of invoice)"
-                rate={assumptions.brokerRate}
-                onChange={(brokerRate) => onChange({ brokerRate })}
-              />
-              <PercentField
-                label="Deductions (% of invoice)"
-                rate={assumptions.deductionsRate}
-                onChange={(deductionsRate) => onChange({ deductionsRate })}
-              />
-            </AccordionContent>
-          </AccordionItem>
-
-          <AccordionItem value="distributor">
-            <AccordionTrigger className="py-3 text-sm">Distributor</AccordionTrigger>
-            <AccordionContent className="space-y-3 pb-3">
-              <div className="flex items-center justify-between gap-3">
-                <Label htmlFor="use-distributor" className="text-xs text-muted-foreground">
-                  Route through a distributor
-                </Label>
-                <Switch
-                  id="use-distributor"
-                  checked={assumptions.useDistributor}
-                  onCheckedChange={(useDistributor) => onChange({ useDistributor })}
+          {visibility.manufacturing && (
+            <AccordionItem value="manufacturing">
+              <AccordionTrigger className="py-3 text-sm">Manufacturing</AccordionTrigger>
+              <AccordionContent className="space-y-3 pb-3">
+                <MoneyField
+                  label="Manufacturing COGS / unit"
+                  value={assumptions.cogsPerUnit}
+                  onChange={(cogsPerUnit) => onChange({ cogsPerUnit })}
                 />
-              </div>
-              {assumptions.useDistributor && (
-                <>
-                  <BasisSelect
-                    label="Distributor margin basis"
-                    value={assumptions.distributorMarginBasis}
-                    onChange={(distributorMarginBasis) => onChange({ distributorMarginBasis })}
-                  />
-                  <PercentField
-                    label={`Distributor ${assumptions.distributorMarginBasis}`}
-                    rate={assumptions.distributorMarginRate}
-                    onChange={(distributorMarginRate) => onChange({ distributorMarginRate })}
-                    hint="Distributor margin and distributor markup are not the same. Confirm which calculation your distributor uses."
-                  />
-                  <MoneyField
-                    label="Distributor handling fee / unit"
-                    value={assumptions.distributorHandlingFeePerUnit}
-                    onChange={(distributorHandlingFeePerUnit) =>
-                      onChange({ distributorHandlingFeePerUnit })
-                    }
-                  />
-                </>
-              )}
-            </AccordionContent>
-          </AccordionItem>
+                <BasisSelect
+                  label="Manufacturer margin basis"
+                  value={assumptions.manufacturerMarginBasis}
+                  onChange={(manufacturerMarginBasis) => onChange({ manufacturerMarginBasis })}
+                />
+                <PercentField
+                  label={`Manufacturer ${assumptions.manufacturerMarginBasis}`}
+                  rate={assumptions.manufacturerMarginRate}
+                  onChange={(manufacturerMarginRate) => onChange({ manufacturerMarginRate })}
+                />
+                {scenario && (
+                  <CalculatedValue label="Manufacturer sell price">
+                    {formatMoney(scenario.manufacturer.sellPricePerUnit)}
+                  </CalculatedValue>
+                )}
+              </AccordionContent>
+            </AccordionItem>
+          )}
 
-          <AccordionItem value="retailer">
-            <AccordionTrigger className="py-3 text-sm">Retailer</AccordionTrigger>
-            <AccordionContent className="space-y-3 pb-3">
-              <BasisSelect
-                label="Retailer margin basis"
-                value={assumptions.retailerMarginBasis}
-                onChange={(retailerMarginBasis) => onChange({ retailerMarginBasis })}
-              />
-              <PercentField
-                label={`Retailer ${assumptions.retailerMarginBasis}`}
-                rate={assumptions.retailerMarginRate}
-                onChange={(retailerMarginRate) => onChange({ retailerMarginRate })}
-                hint="Retailer margin is the percentage of the retail selling price retained as gross profit before the retailer's operating expenses."
-              />
-            </AccordionContent>
-          </AccordionItem>
+          {visibility.landedCost && (
+            <AccordionItem value="landed">
+              <AccordionTrigger className="py-3 text-sm">Landed cost</AccordionTrigger>
+              <AccordionContent className="space-y-3 pb-3">
+                <MoneyField
+                  label="International freight / unit"
+                  value={assumptions.internationalFreightPerUnit}
+                  onChange={(internationalFreightPerUnit) => onChange({ internationalFreightPerUnit })}
+                />
+                <PercentField
+                  label="Tariff (% of customs value)"
+                  rate={assumptions.tariffRate}
+                  onChange={(tariffRate) => onChange({ tariffRate })}
+                  hint="Customs value equals the manufacturer purchase price on this screen. The tariff basis stays user-selectable in product setup."
+                />
+                <MoneyField
+                  label="Domestic freight / unit"
+                  value={assumptions.domesticFreightPerUnit}
+                  onChange={(domesticFreightPerUnit) => onChange({ domesticFreightPerUnit })}
+                />
+                {scenario && (
+                  <CalculatedValue label="Brand landed cost">
+                    {formatMoney(scenario.landed.landedCostPerUnit)}
+                  </CalculatedValue>
+                )}
+              </AccordionContent>
+            </AccordionItem>
+          )}
 
-          <AccordionItem value="promotions">
-            <AccordionTrigger className="py-3 text-sm">Promotions & trade spend</AccordionTrigger>
-            <AccordionContent className="space-y-3 pb-3">
-              <PercentField
-                label="Promotional trade spend (% of gross)"
-                rate={assumptions.tradeSpendRate}
-                onChange={(tradeSpendRate) => onChange({ tradeSpendRate })}
-                hint="Manual mode. Building this rate from an actual promotional calendar arrives with the Promotion Planner."
-              />
-              <PercentField
-                label="Additional trade reserve"
-                rate={assumptions.additionalReserveRate}
-                onChange={(additionalReserveRate) => onChange({ additionalReserveRate })}
-                hint="Reserve for unplanned TPRs, markdowns, deductions and promotional leakage on top of the planned rate."
-              />
-              {scenario && (
-                <CalculatedValue label="Total planned trade spend">
-                  {formatPercent(scenario.tradeSpend.totalRate, 2)}
-                </CalculatedValue>
-              )}
-            </AccordionContent>
-          </AccordionItem>
+          {visibility.commercial && (
+            <AccordionItem value="commercial">
+              <AccordionTrigger className="py-3 text-sm">Commercial</AccordionTrigger>
+              <AccordionContent className="space-y-3 pb-3">
+                <PercentField
+                  label="Broker commission (% of invoice)"
+                  rate={assumptions.brokerRate}
+                  onChange={(brokerRate) => onChange({ brokerRate })}
+                />
+                <PercentField
+                  label="Deductions (% of invoice)"
+                  rate={assumptions.deductionsRate}
+                  onChange={(deductionsRate) => onChange({ deductionsRate })}
+                />
+              </AccordionContent>
+            </AccordionItem>
+          )}
+
+          {visibility.distributor && (
+            <AccordionItem value="distributor">
+              <AccordionTrigger className="py-3 text-sm">Distributor</AccordionTrigger>
+              <AccordionContent className="space-y-3 pb-3">
+                <BasisSelect
+                  label="Distributor margin basis"
+                  value={assumptions.distributorMarginBasis}
+                  onChange={(distributorMarginBasis) => onChange({ distributorMarginBasis })}
+                />
+                <PercentField
+                  label={`Distributor ${assumptions.distributorMarginBasis}`}
+                  rate={assumptions.distributorMarginRate}
+                  onChange={(distributorMarginRate) => onChange({ distributorMarginRate })}
+                  hint="Distributor margin and distributor markup are not the same. Confirm which calculation your distributor uses."
+                />
+                <MoneyField
+                  label="Distributor handling fee / unit"
+                  value={assumptions.distributorHandlingFeePerUnit}
+                  onChange={(distributorHandlingFeePerUnit) =>
+                    onChange({ distributorHandlingFeePerUnit })
+                  }
+                />
+              </AccordionContent>
+            </AccordionItem>
+          )}
+
+          {visibility.retailer && (
+            <AccordionItem value="retailer">
+              <AccordionTrigger className="py-3 text-sm">Retailer</AccordionTrigger>
+              <AccordionContent className="space-y-3 pb-3">
+                <BasisSelect
+                  label="Retailer margin basis"
+                  value={assumptions.retailerMarginBasis}
+                  onChange={(retailerMarginBasis) => onChange({ retailerMarginBasis })}
+                />
+                <PercentField
+                  label={`Retailer ${assumptions.retailerMarginBasis}`}
+                  rate={assumptions.retailerMarginRate}
+                  onChange={(retailerMarginRate) => onChange({ retailerMarginRate })}
+                  hint="Retailer margin is the percentage of the retail selling price retained as gross profit before the retailer's operating expenses."
+                />
+              </AccordionContent>
+            </AccordionItem>
+          )}
+
+          {visibility.promotions && (
+            <AccordionItem value="promotions">
+              <AccordionTrigger className="py-3 text-sm">Promotions & trade spend</AccordionTrigger>
+              <AccordionContent className="space-y-3 pb-3">
+                <PercentField
+                  label="Promotional trade spend (% of gross)"
+                  rate={assumptions.tradeSpendRate}
+                  onChange={(tradeSpendRate) => onChange({ tradeSpendRate })}
+                  hint="Manual mode. Building this rate from an actual promotional calendar arrives with the Promotion Planner."
+                />
+                <PercentField
+                  label="Additional trade reserve"
+                  rate={assumptions.additionalReserveRate}
+                  onChange={(additionalReserveRate) => onChange({ additionalReserveRate })}
+                  hint="Reserve for unplanned TPRs, markdowns, deductions and promotional leakage on top of the planned rate."
+                />
+                {scenario && (
+                  <CalculatedValue label="Total planned trade spend">
+                    {formatPercent(scenario.tradeSpend.totalRate, 2)}
+                  </CalculatedValue>
+                )}
+              </AccordionContent>
+            </AccordionItem>
+          )}
 
           <AccordionItem value="target">
             <AccordionTrigger className="py-3 text-sm">Shelf price & target</AccordionTrigger>

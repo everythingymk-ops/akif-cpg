@@ -1,7 +1,9 @@
 "use client";
 
-import { RotateCcw } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { Plus, RotateCcw } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -10,17 +12,24 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 
 /**
- * Top bar (PRD §58). One in-memory demo product for now; product/retailer/
- * distributor/scenario management and export land in later roadmap steps —
- * the controls are visible but say so instead of pretending to work.
+ * Top bar (PRD §58): product switcher (in-memory store), the active route,
+ * and the actions that arrive in later roadmap steps — visible but honest
+ * about when they land.
  */
 export function TopBar({
-  productName,
+  products,
+  activeProductId,
+  onSelectProduct,
+  routeLabel,
   onReset,
 }: {
-  productName: string;
+  products: { id: string; name: string }[];
+  activeProductId: string;
+  onSelectProduct: (id: string) => void;
+  routeLabel: string;
   onReset: () => void;
 }) {
   return (
@@ -30,54 +39,52 @@ export function TopBar({
         <span className="text-xs text-muted-foreground">Pricing Architect</span>
       </div>
 
-      <Select value="demo" disabled>
-        <SelectTrigger size="sm" className="w-[220px] text-xs">
-          <SelectValue />
+      <Select
+        value={activeProductId}
+        onValueChange={(value) => {
+          if (value) onSelectProduct(value);
+        }}
+      >
+        <SelectTrigger size="sm" className="w-[230px] text-xs" aria-label="Product">
+          <SelectValue>
+            {products.find((product) => product.id === activeProductId)?.name ?? "Select product"}
+          </SelectValue>
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="demo">{productName}</SelectItem>
+          {products.map((product) => (
+            <SelectItem key={product.id} value={product.id}>
+              {product.name}
+            </SelectItem>
+          ))}
         </SelectContent>
       </Select>
 
-      <PlaceholderSelect label="Retailer" note="Retailer profiles arrive in a later step" />
-      <PlaceholderSelect label="Distributor" note="Distributor profiles arrive in a later step" />
-      <PlaceholderSelect label="Scenario: Base" note="Saved scenarios arrive in a later step" />
+      <Link href="/setup" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-8 gap-1 text-xs")}>
+        <Plus className="size-3" aria-hidden /> New product
+      </Link>
+
+      <Badge variant="outline" className="text-[11px] text-muted-foreground">
+        {routeLabel}
+      </Badge>
 
       <div className="ml-auto flex items-center gap-1.5">
         <Tooltip>
           <TooltipTrigger
             render={
               <Button variant="outline" size="sm" className="h-8 gap-1 text-xs" onClick={onReset}>
-                <RotateCcw className="size-3" aria-hidden /> Reset demo
+                <RotateCcw className="size-3" aria-hidden /> Reset assumptions
               </Button>
             }
           />
-          <TooltipContent className="text-xs">Restore the demo product assumptions</TooltipContent>
+          <TooltipContent className="text-xs">
+            Restore this product&apos;s initial assumptions
+          </TooltipContent>
         </Tooltip>
         <DisabledAction label="Save" note="Scenario persistence arrives in a later step" />
         <DisabledAction label="Duplicate" note="Scenario persistence arrives in a later step" />
         <DisabledAction label="Export" note="CSV/Excel export arrives in a later step" />
       </div>
     </header>
-  );
-}
-
-function PlaceholderSelect({ label, note }: { label: string; note: string }) {
-  return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <span tabIndex={0} className="inline-flex">
-            <Select disabled>
-              <SelectTrigger size="sm" className="w-[150px] text-xs">
-                <SelectValue placeholder={label} />
-              </SelectTrigger>
-            </Select>
-          </span>
-        }
-      />
-      <TooltipContent className="text-xs">{note}</TooltipContent>
-    </Tooltip>
   );
 }
 
