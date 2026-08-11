@@ -39,6 +39,29 @@ export function applyMarginSpec(cost: DecimalInput, spec: MarginSpec): Decimal {
     : priceFromMarkup(cost, spec.rate);
 }
 
+/**
+ * Inverse of applyMarginSpec: the cost that yields `price` under the spec.
+ * margin: cost = price × (1 − m); markup: cost = price ÷ (1 + k).
+ */
+export function costFromPrice(price: DecimalInput, spec: MarginSpec): Decimal {
+  const p = dec(price, "price");
+  const r = dec(spec.rate, `${spec.basis} rate`);
+  if (spec.basis === "margin") {
+    if (r.greaterThanOrEqualTo(1)) {
+      throw new PricingEngineError(
+        `margin rate must be < 1, got ${r.toString()} — a margin of 100% or more cannot be inverted to a cost`,
+      );
+    }
+    return p.times(ONE.minus(r));
+  }
+  if (r.lessThanOrEqualTo(-1)) {
+    throw new PricingEngineError(
+      `markup rate must be > -1, got ${r.toString()} — a markup of -100% or less cannot be inverted to a cost`,
+    );
+  }
+  return p.dividedBy(ONE.plus(r));
+}
+
 /** Realized margin = (price − cost) ÷ price. */
 export function marginRateOf(cost: DecimalInput, price: DecimalInput): Decimal {
   const c = dec(cost, "cost");

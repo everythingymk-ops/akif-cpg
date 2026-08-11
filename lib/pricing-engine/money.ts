@@ -42,6 +42,17 @@ export function decPositive(value: DecimalInput, label: string): Decimal {
   return out;
 }
 
+/** dec() for decimal-fraction rates that must lie in [0, 1]. */
+export function decRate01(value: DecimalInput, label: string): Decimal {
+  const rate = dec(value, label);
+  if (rate.lessThan(0) || rate.greaterThan(1)) {
+    throw new PricingEngineError(
+      `${label} must be between 0 and 1 (a decimal fraction, e.g. 15% → 0.15), got ${rate.toString()}`,
+    );
+  }
+  return rate;
+}
+
 /**
  * Round to currency precision (default 2 dp, half-up). Display boundary only —
  * calculation chains always continue from unrounded values.

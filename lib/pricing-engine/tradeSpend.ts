@@ -1,5 +1,5 @@
 import type Decimal from "decimal.js";
-import { ONE, ZERO, dec, decNonNegative, decPositive, fmt } from "./money";
+import { ONE, ZERO, decNonNegative, decPositive, decRate01, fmt } from "./money";
 import { PricingEngineError, type CalculationTrace, type DecimalInput, type TraceStep } from "./types";
 
 /**
@@ -125,26 +125,16 @@ interface ParsedPromotion {
   estimatedUnits?: Decimal;
 }
 
-function rate01(value: DecimalInput, label: string): Decimal {
-  const rate = dec(value, label);
-  if (rate.lessThan(0) || rate.greaterThan(1)) {
-    throw new PricingEngineError(
-      `${label} must be between 0 and 1 (a decimal fraction, e.g. 15% → 0.15), got ${rate.toString()}`,
-    );
-  }
-  return rate;
-}
-
 function parsePromotion(promotion: Promotion): ParsedPromotion {
   const name = promotion.name || "(unnamed promotion)";
   const weeks = decNonNegative(promotion.weeks, `promotion "${name}" weeks`);
-  const discount = rate01(promotion.discountRate, `promotion "${name}" discountRate`);
-  const brandFunding = rate01(promotion.brandFundingRate, `promotion "${name}" brandFundingRate`);
+  const discount = decRate01(promotion.discountRate, `promotion "${name}" discountRate`);
+  const brandFunding = decRate01(promotion.brandFundingRate, `promotion "${name}" brandFundingRate`);
   if (promotion.retailerFundingRate !== undefined) {
-    rate01(promotion.retailerFundingRate, `promotion "${name}" retailerFundingRate`);
+    decRate01(promotion.retailerFundingRate, `promotion "${name}" retailerFundingRate`);
   }
   if (promotion.distributorFundingRate !== undefined) {
-    rate01(promotion.distributorFundingRate, `promotion "${name}" distributorFundingRate`);
+    decRate01(promotion.distributorFundingRate, `promotion "${name}" distributorFundingRate`);
   }
   const lift = decNonNegative(promotion.salesLift, `promotion "${name}" salesLift`);
 
