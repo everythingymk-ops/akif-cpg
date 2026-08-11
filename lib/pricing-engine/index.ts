@@ -14,3 +14,6 @@ export * from "./tradeSpend";
 export * from "./contribution";
 export * from "./reversePricing";
 export * from "./breakEven";
+export * from "./sensitivity";
+export * from "./validation";
+export * from "./advisor";

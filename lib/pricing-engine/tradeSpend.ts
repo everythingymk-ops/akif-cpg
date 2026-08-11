@@ -60,6 +60,9 @@ export interface Promotion {
   additionalCost?: DecimalInput;
   /** Optional forecast of promoted units; overrides weeks × lift × weekly units. */
   estimatedUnits?: DecimalInput;
+  /** Optional ISO dates (PRD §65) — informational; used by overlap validation. */
+  startDate?: string;
+  endDate?: string;
   notes?: string;
 }
 

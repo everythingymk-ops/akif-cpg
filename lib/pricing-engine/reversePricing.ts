@@ -191,6 +191,74 @@ export function reverseSolvingContext(
   return out;
 }
 
+export interface ImpliedInvoiceInput {
+  srpPerUnit: DecimalInput;
+  retailerMarginSpec: MarginSpec;
+  /** Omit for a direct brand → retailer route. */
+  distributor?: DistributorAssumptions;
+  context?: CostResolutionContext;
+}
+
+export interface ImpliedInvoiceResult {
+  srpPerUnit: Decimal;
+  retailerAcquisitionCostPerUnit: Decimal;
+  distributorSellPricePerUnit?: Decimal;
+  /** The brand invoice the channel implies at this shelf price. */
+  brandInvoicePerUnit: Decimal;
+  /** Linearized distributor fees (present when a distributor was given). */
+  distributorFees?: LinearizedNettingCosts;
+  /** Sell-price multiplier from the distributor margin spec. */
+  distributorMarginMultiplier?: Decimal;
+}
+
+/**
+ * Chain algebra only (no contribution target): what brand invoice does a given
+ * shelf price imply through the retailer margin and distributor economics?
+ * Used by reverse pricing, sensitivity ("contribution at current SRP") and the
+ * Advisor.
+ */
+export function impliedBrandInvoiceAtShelf(input: ImpliedInvoiceInput): ImpliedInvoiceResult {
+  const srp = decPositive(input.srpPerUnit, "srpPerUnit");
+  const context = reverseSolvingContext(input.context, srp);
+
+  const retailerCost = costFromPrice(srp, input.retailerMarginSpec);
+  if (retailerCost.lessThanOrEqualTo(0)) {
+    throw new PricingEngineError("retailer margin leaves a zero acquisition cost at this SRP");
+  }
+
+  if (!input.distributor) {
+    return {
+      srpPerUnit: srp,
+      retailerAcquisitionCostPerUnit: retailerCost,
+      brandInvoicePerUnit: retailerCost,
+    };
+  }
+
+  const fees = linearizeNettingCosts(input.distributor.fees ?? [], context, {
+    allowNetSalesBasis: false,
+    label: "distributor fees",
+  });
+  const sellAfterFixedFees = retailerCost.minus(fees.fixedPerUnit);
+  if (sellAfterFixedFees.lessThanOrEqualTo(0)) {
+    throw new PricingEngineError("fixed distributor fees meet or exceed the retailer acquisition cost");
+  }
+  // retailerCost = invoice × M + fixedFees + feeRate × invoice, M from the margin spec.
+  const marginMultiplier = applyMarginSpec(ONE, input.distributor.marginSpec);
+  const invoice = sellAfterFixedFees.dividedBy(marginMultiplier.plus(fees.invoiceRate));
+  if (invoice.lessThanOrEqualTo(0)) {
+    throw new PricingEngineError("the channel assumptions leave a zero brand invoice");
+  }
+
+  return {
+    srpPerUnit: srp,
+    retailerAcquisitionCostPerUnit: retailerCost,
+    distributorSellPricePerUnit: applyMarginSpec(invoice, input.distributor.marginSpec),
+    brandInvoicePerUnit: invoice,
+    distributorFees: fees,
+    distributorMarginMultiplier: marginMultiplier,
+  };
+}
+
 export interface ReversePricingInput extends NettingAssumptions {
   targetSrpPerUnit: DecimalInput;
   retailerMarginSpec: MarginSpec;
@@ -221,16 +289,21 @@ export interface ReversePricingResult {
 }
 
 export function reversePriceFromShelf(input: ReversePricingInput): ReversePricingResult {
-  const srp = decPositive(input.targetSrpPerUnit, "targetSrpPerUnit");
   const targetRate = dec(input.targetContributionRate, "targetContributionRate");
-  const context = reverseSolvingContext(input.context, srp);
   const steps: TraceStep[] = [];
 
-  // 1. Retailer: acquisition cost the retailer can pay at the target SRP.
-  const retailerCost = costFromPrice(srp, input.retailerMarginSpec);
-  if (retailerCost.lessThanOrEqualTo(0)) {
-    throw new PricingEngineError("retailer margin leaves a zero acquisition cost at the target SRP");
-  }
+  // 1–2. Channel algebra: SRP → retailer cost → maximum brand invoice.
+  const implied = impliedBrandInvoiceAtShelf({
+    srpPerUnit: input.targetSrpPerUnit,
+    retailerMarginSpec: input.retailerMarginSpec,
+    distributor: input.distributor,
+    context: input.context,
+  });
+  const srp = implied.srpPerUnit;
+  const context = reverseSolvingContext(input.context, srp);
+  const retailerCost = implied.retailerAcquisitionCostPerUnit;
+  const maxInvoice = implied.brandInvoicePerUnit;
+
   steps.push({
     label: "Retailer acquisition cost",
     formula:
@@ -239,40 +312,18 @@ export function reversePriceFromShelf(input: ReversePricingInput): ReversePricin
         : `${fmt(srp)} ÷ (1 + ${fmt(dec(input.retailerMarginSpec.rate))})`,
     value: retailerCost,
   });
-
-  // 2. Distributor: invert sell price + pass-through fees to the brand invoice.
-  let maxInvoice: Decimal;
-  let distributorSellPrice: Decimal | undefined;
-  if (input.distributor) {
-    const fees = linearizeNettingCosts(input.distributor.fees ?? [], context, {
-      allowNetSalesBasis: false,
-      label: "distributor fees",
-    });
-    const sellAfterFixedFees = retailerCost.minus(fees.fixedPerUnit);
-    if (sellAfterFixedFees.lessThanOrEqualTo(0)) {
-      throw new PricingEngineError(
-        "fixed distributor fees meet or exceed the retailer acquisition cost",
-      );
-    }
-    // retailerCost = invoice × M + fixedFees + feeRate × invoice, M from the margin spec.
-    const marginMultiplier = applyMarginSpec(ONE, input.distributor.marginSpec);
-    maxInvoice = sellAfterFixedFees.dividedBy(marginMultiplier.plus(fees.invoiceRate));
-    distributorSellPrice = applyMarginSpec(maxInvoice, input.distributor.marginSpec);
+  if (input.distributor && implied.distributorFees && implied.distributorMarginMultiplier) {
     steps.push({
       label: "Maximum brand invoice (through distributor)",
-      formula: `(${fmt(retailerCost)} − ${fmt(fees.fixedPerUnit)} fees) ÷ (${fmt(marginMultiplier)} + ${fmt(fees.invoiceRate)})`,
+      formula: `(${fmt(retailerCost)} − ${fmt(implied.distributorFees.fixedPerUnit)} fees) ÷ (${fmt(implied.distributorMarginMultiplier)} + ${fmt(implied.distributorFees.invoiceRate)})`,
       value: maxInvoice,
     });
   } else {
-    maxInvoice = retailerCost;
     steps.push({
       label: "Maximum brand invoice (direct to retailer)",
       formula: "equals retailer acquisition cost",
       value: maxInvoice,
     });
-  }
-  if (maxInvoice.lessThanOrEqualTo(0)) {
-    throw new PricingEngineError("the assumptions leave a zero brand invoice");
   }
 
   // 3. Netting: from invoice down to the maximum landed cost at target contribution.
@@ -364,7 +415,7 @@ export function reversePriceFromShelf(input: ReversePricingInput): ReversePricin
   return {
     targetSrpPerUnit: srp,
     retailerAcquisitionCostPerUnit: retailerCost,
-    distributorSellPricePerUnit: distributorSellPrice,
+    distributorSellPricePerUnit: implied.distributorSellPricePerUnit,
     maxBrandInvoicePerUnit: maxInvoice,
     netRevenuePerUnit: netRevenue,
     maxLandedCostPerUnit: maxLandedCost,
