@@ -17,3 +17,4 @@ export * from "./breakEven";
 export * from "./sensitivity";
 export * from "./validation";
 export * from "./advisor";
+export * from "./improveEconomics";

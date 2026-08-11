@@ -101,6 +101,33 @@ describe("computeScenario — screen composition layer", () => {
     if (!result.ok) return;
     expect(result.scenario.atCurrentSrp).toBeUndefined();
     expect(result.scenario.priceGap).toBeUndefined();
+    expect(result.scenario.dollarAllocation).toBeUndefined();
+    expect(result.scenario.improvement).toBeUndefined();
     expect(result.scenario.requiredSrpPerUnit).toBeDefined();
+  });
+
+  it("the §43 dollar allocation sums exactly to the shelf price", () => {
+    const result = computeScenario(DEMO_ASSUMPTIONS);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const allocation = result.scenario.dollarAllocation!;
+    const total = allocation.reduce((sum, slice) => sum.plus(slice.amount), dec(0));
+    expect(total.toDecimalPlaces(25).equals(dec("19.99").toDecimalPlaces(25))).toBe(true);
+    const shareTotal = allocation.reduce((sum, slice) => sum.plus(slice.share), dec(0));
+    expect(shareTotal.toDecimalPlaces(20).equals("1")).toBe(true);
+    expect(allocation.map((slice) => slice.id)).toContain("distributor");
+  });
+
+  it("improvement levers accompany a struggling shelf price (§73)", () => {
+    const result = computeScenario({ ...DEMO_ASSUMPTIONS, currentSrpPerUnit: "17.50" });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.scenario.improvement?.alreadyOnTarget).toBe(false);
+    expect(result.scenario.improvement?.levers.length).toBeGreaterThanOrEqual(4);
+    // Healthy demo shelf price reports on-target with no levers.
+    const healthy = computeScenario(DEMO_ASSUMPTIONS);
+    if (!healthy.ok) throw new Error("unexpected");
+    expect(healthy.scenario.improvement?.alreadyOnTarget).toBe(true);
+    expect(healthy.scenario.improvement?.levers).toEqual([]);
   });
 });

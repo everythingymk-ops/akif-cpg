@@ -4,6 +4,7 @@ import {
   buildLandedCost,
   computeBreakEven,
   computeContribution,
+  computeImprovementLevers,
   computePriceGap,
   computeTradeSpendActualUnits,
   computeTradeSpendNormalized,
@@ -23,10 +24,12 @@ import {
   type CostLine,
   type DecimalInput,
   type DistributorAssumptions,
+  type ImprovementResult,
   type LandedCostResult,
   type ManufacturerPricingResult,
   type PriceGapResult,
   type Promotion,
+  type SensitivityBaseScenario,
   type TradeSpendBand,
   type TradeSpendResult,
   type ValidationWarning,
@@ -77,13 +80,29 @@ export interface ComputedScenario {
   atCurrentSrp?: {
     srpPerUnit: Decimal;
     impliedInvoicePerUnit: Decimal;
+    retailerAcquisitionCostPerUnit: Decimal;
     contribution: ContributionResult;
   };
   priceGap?: PriceGapResult;
   breakEvenSrpPerUnit?: Decimal;
+  /** §43 dollar allocation of the current shelf price. */
+  dollarAllocation?: AllocationSlice[];
+  /** §73 improvement levers, computed when a current SRP exists. */
+  improvement?: ImprovementResult;
+  /** Shared base for on-demand sensitivity/reverse computations (steps 4/8). */
+  sensitivityBase: SensitivityBaseScenario;
   waterfall: WaterfallStage[];
   insights: AdvisorInsight[];
   warnings: ValidationWarning[];
+}
+
+/** One slice of the §43 "where does the consumer dollar go" view. */
+export interface AllocationSlice {
+  id: string;
+  label: string;
+  amount: Decimal;
+  /** Share of the shelf price (amount ÷ SRP). */
+  share: Decimal;
 }
 
 export type ScenarioComputation =
@@ -259,6 +278,8 @@ function compute(a: ScenarioAssumptions, options?: ScenarioOptions): ComputedSce
   const currentSrp = optional(a.currentSrpPerUnit);
   let atCurrentSrp: ComputedScenario["atCurrentSrp"];
   let priceGap: PriceGapResult | undefined;
+  let dollarAllocation: AllocationSlice[] | undefined;
+  let improvement: ImprovementResult | undefined;
   if (currentSrp !== undefined) {
     const implied = impliedBrandInvoiceAtShelf({
       srpPerUnit: currentSrp,
@@ -275,8 +296,48 @@ function compute(a: ScenarioAssumptions, options?: ScenarioOptions): ComputedSce
     atCurrentSrp = {
       srpPerUnit: implied.srpPerUnit,
       impliedInvoicePerUnit: implied.brandInvoicePerUnit,
+      retailerAcquisitionCostPerUnit: implied.retailerAcquisitionCostPerUnit,
       contribution,
     };
+
+    // §43 dollar allocation: decompose the consumer dollar from already
+    // computed engine outputs (differences of adjacent chain stages).
+    const srp = implied.srpPerUnit;
+    const slices: AllocationSlice[] = [];
+    const pushSlice = (id: string, label: string, amount: Decimal) =>
+      slices.push({ id, label, amount, share: amount.dividedBy(srp) });
+    pushSlice("retailer", "Retailer", srp.minus(implied.retailerAcquisitionCostPerUnit));
+    if (distributor) {
+      pushSlice(
+        "distributor",
+        "Distributor",
+        implied.retailerAcquisitionCostPerUnit.minus(implied.brandInvoicePerUnit),
+      );
+    }
+    pushSlice("trade-spend", "Trade spend", contribution.tradeSpendPerUnit);
+    pushSlice("deductions", "Deductions", contribution.deductionsPerUnit);
+    pushSlice("variable-costs", "Broker & variable costs", contribution.variableCostsPerUnit);
+    pushSlice("logistics", "Logistics & duty", landed.addOnCostPerUnit);
+    pushSlice("manufacturing", "Manufacturing COGS", manufacturer.cogsPerUnit);
+    pushSlice("manufacturer-profit", "Manufacturer profit", manufacturer.profitPerUnit);
+    pushSlice("contribution", "Brand contribution", contribution.contributionPerUnit);
+    dollarAllocation = slices;
+
+    // §73 improvement levers.
+    try {
+      improvement = computeImprovementLevers({
+        landedCostPerUnit: landed.landedCostPerUnit,
+        targetContributionRate: a.targetContributionRate,
+        currentSrpPerUnit: currentSrp,
+        tradeSpendRate: totalTradeRate,
+        revenueDeductions,
+        variableCosts,
+        distributor,
+        retailerMarginSpec,
+      });
+    } catch (error) {
+      if (!(error instanceof PricingEngineError)) throw error;
+    }
 
     // Pricing gap (PRD §31): actual landed cost vs what the current SRP supports.
     try {
@@ -294,6 +355,18 @@ function compute(a: ScenarioAssumptions, options?: ScenarioOptions): ComputedSce
       if (!(error instanceof PricingEngineError)) throw error;
     }
   }
+
+  // Shared base for the on-demand sensitivity / reverse-pricing tabs.
+  const sensitivityBase: SensitivityBaseScenario = {
+    landedCostPerUnit: landed.landedCostPerUnit,
+    targetContributionRate: a.targetContributionRate,
+    tradeSpendRate: totalTradeRate,
+    revenueDeductions,
+    variableCosts,
+    distributor,
+    retailerMarginSpec,
+    currentSrpPerUnit: currentSrp,
+  };
 
   // 6. Break-even SRP (PRD §74) for validation and summary context.
   let breakEvenSrpPerUnit: Decimal | undefined;
@@ -416,6 +489,9 @@ function compute(a: ScenarioAssumptions, options?: ScenarioOptions): ComputedSce
     atCurrentSrp,
     priceGap,
     breakEvenSrpPerUnit,
+    dollarAllocation,
+    improvement,
+    sensitivityBase,
     waterfall,
     insights,
     warnings,

@@ -16,12 +16,16 @@ import {
   type ProductSetup,
 } from "@/lib/scenario/product";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useBenchmarks } from "@/components/benchmarks/benchmark-provider";
 import { useProducts } from "@/components/setup/product-provider";
 import { AdvisorPanel } from "./advisor-panel";
+import { AllocationView } from "./allocation-view";
 import { AssumptionsPanel } from "./assumptions-panel";
 import { PromotionPlannerDialog } from "./promotion-planner";
+import { ReverseView } from "./reverse-view";
+import { SensitivityView } from "./sensitivity-view";
 import { SummaryCards } from "./summary-cards";
 import { TopBar } from "./top-bar";
 import { Waterfall } from "./waterfall";
@@ -162,7 +166,43 @@ function ProductPricingScreen({
               onChange={update}
               onOpenPlanner={() => setPlannerOpen(true)}
             />
-            {scenario && <Waterfall scenario={scenario} />}
+            {scenario && (
+              <Tabs defaultValue="waterfall" className="min-w-0">
+                <TabsList>
+                  <TabsTrigger value="waterfall">Price build</TabsTrigger>
+                  <TabsTrigger value="allocation" disabled={!scenario.dollarAllocation}>
+                    $ allocation
+                  </TabsTrigger>
+                  <TabsTrigger value="sensitivity">Sensitivity</TabsTrigger>
+                  <TabsTrigger value="reverse">Reverse & fix</TabsTrigger>
+                </TabsList>
+                <TabsContent value="waterfall">
+                  <Waterfall scenario={scenario} />
+                </TabsContent>
+                <TabsContent value="allocation">
+                  {scenario.dollarAllocation && scenario.atCurrentSrp && (
+                    <AllocationView
+                      srpPerUnit={scenario.atCurrentSrp.srpPerUnit}
+                      allocation={scenario.dollarAllocation}
+                    />
+                  )}
+                </TabsContent>
+                <TabsContent value="sensitivity">
+                  <SensitivityView base={scenario.sensitivityBase} />
+                </TabsContent>
+                <TabsContent value="reverse">
+                  <ReverseView
+                    base={scenario.sensitivityBase}
+                    actualLandedCost={scenario.landed.landedCostPerUnit}
+                    improvement={scenario.improvement}
+                    defaultTargetSrp={
+                      assumptions.targetSrpPerUnit || assumptions.currentSrpPerUnit || "19.99"
+                    }
+                    onApply={update}
+                  />
+                </TabsContent>
+              </Tabs>
+            )}
             {scenario && (
               <AdvisorPanel insights={scenario.insights} warnings={scenario.warnings} />
             )}
