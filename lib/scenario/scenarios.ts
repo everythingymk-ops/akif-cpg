@@ -82,6 +82,16 @@ function formatValue(value: unknown, kind: FieldKind): string {
   return text;
 }
 
+/** All assumptions as display rows (used by the §69 export and the §68 diff). */
+export function describeAssumptions(
+  assumptions: ScenarioAssumptions,
+): { label: string; value: string }[] {
+  return FIELD_META.map(({ key, label, kind }) => ({
+    label,
+    value: formatValue(assumptions[key], kind),
+  }));
+}
+
 /**
  * Field-level assumption diff in §68 display form
  * ("Trade Spend: 10% → 15%"). Promotions are compared as one summarized

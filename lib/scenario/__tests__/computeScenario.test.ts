@@ -33,14 +33,17 @@ describe("computeScenario — screen composition layer", () => {
     expect(s.landed.landedCostPerUnit.equals(landed.landedCostPerUnit)).toBe(true);
     expect(s.landed.landedCostPerUnit.equals("5.846875")).toBe(true);
 
-    // §23 stack: 9.48% promo + 2% reserve = 11.48%.
-    expect(s.tradeSpend.totalRate.equals("0.1148")).toBe(true);
+    // §99 seed: calendar mode prices the BOGO+OI plan to ≈9.48% + 2% reserve.
+    expect(s.tradeSpend.mode).toBe("calendar");
+    expect(s.tradeSpend.plan?.totalPromotionSpend.equals("5.5")).toBe(true);
+    expect(s.tradeSpend.promotionalRate.toDecimalPlaces(6).equals("0.094828")).toBe(true);
+    expect(s.tradeSpend.totalRate.toDecimalPlaces(6).equals("0.114828")).toBe(true);
 
     // Required SRP matches a direct engine composition with the same inputs.
     const required = requiredSrpForContribution({
       landedCostPerUnit: landed.landedCostPerUnit,
       targetContributionRate: "0.08",
-      tradeSpendRate: "0.1148",
+      tradeSpendRate: s.tradeSpend.totalRate,
       revenueDeductions: [{ name: "Deductions", amount: "0.02", basis: "percentOfInvoice", owner: "brand" }],
       variableCosts: [{ name: "Broker Commission", amount: "0.05", basis: "percentOfInvoice", owner: "brand" }],
       distributor: {

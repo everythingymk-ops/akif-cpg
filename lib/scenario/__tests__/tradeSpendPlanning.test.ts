@@ -94,7 +94,11 @@ describe("computeScenario — calendar trade spend (PRD §16 Mode B)", () => {
   });
 
   it("manual mode still stacks rate + reserve and reports its band", () => {
-    const result = computeScenario(DEMO_ASSUMPTIONS);
+    const result = computeScenario({
+      ...DEMO_ASSUMPTIONS,
+      tradeSpendMode: "manual",
+      promotions: [],
+    });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.scenario.tradeSpend.mode).toBe("manual");

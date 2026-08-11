@@ -16,6 +16,7 @@ import {
   getSectionVisibility,
   type ProductSetup,
 } from "@/lib/scenario/product";
+import { buildScenarioExportCsv, scenarioExportFilename } from "@/lib/scenario/exportCsv";
 import { resolveAssumptions, type AssumptionLayer } from "@/lib/scenario/priority";
 import { distributorProfileValues, retailerProfileValues } from "@/lib/scenario/profiles";
 import { buildAuditEntry, type AuditChange } from "@/lib/scenario/scenarios";
@@ -205,6 +206,25 @@ function ProductPricingScreen({ product }: { product: ProductSetup }) {
     saveActiveScenario(assumptions, entry);
   };
 
+  // §69: download the working scenario as a CSV Excel opens directly.
+  const handleExport = () => {
+    if (!scenario) return;
+    const csv = buildScenarioExportCsv({
+      product,
+      scenarioName: activeScenario?.name ?? "Working",
+      assumptions,
+      computed: scenario,
+      generatedAt: new Date().toISOString(),
+    });
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = scenarioExportFilename(product, activeScenario?.name ?? "working");
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
+
   // §45: profile economics enter as the "customer" layer over the working set.
   const applyRetailerProfile = (id: string) => {
     const profile = retailerProfiles.find((r) => r.id === id);
@@ -250,6 +270,7 @@ function ProductPricingScreen({ product }: { product: ProductSetup }) {
             onDuplicate: () => setNameDialog("duplicate"),
             onCompare: () => setCompareOpen(true),
             onHistory: () => setHistoryOpen(true),
+            onExport: scenario ? handleExport : null,
           }}
           profiles={{
             retailers: retailerProfiles.map(({ id, name }) => ({ id, name })),

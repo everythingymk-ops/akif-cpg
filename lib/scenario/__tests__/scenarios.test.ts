@@ -30,21 +30,13 @@ describe("diffAssumptions — PRD §68", () => {
   });
 
   it("summarizes promotional calendar changes as one line", () => {
+    // The §99 demo ships with 2 promotions; drop one.
     const changes = diffAssumptions(DEMO_ASSUMPTIONS, {
       ...DEMO_ASSUMPTIONS,
-      promotions: [
-        {
-          name: "BOGO",
-          type: "bogo",
-          weeks: "4",
-          discountRate: "0.5",
-          brandFundingRate: "1",
-          salesLift: "2",
-        },
-      ],
+      promotions: DEMO_ASSUMPTIONS.promotions.slice(0, 1),
     });
     expect(changes).toEqual([
-      { field: "promotions", label: "Promotional calendar", from: "0 promotions", to: "1 promotion" },
+      { field: "promotions", label: "Promotional calendar", from: "2 promotions", to: "1 promotion" },
     ]);
   });
 

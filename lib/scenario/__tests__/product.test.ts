@@ -102,11 +102,23 @@ describe("assumptionsForProduct — PRD §12, §52", () => {
   });
 
   it("private label (route D) defaults trade spend and broker to zero, still editable data", () => {
-    const a = assumptionsForProduct({ ...DEMO_PRODUCT, route: "D" });
+    const a = assumptionsForProduct({ ...DEMO_PRODUCT, route: "D", assumptionOverrides: undefined });
     expect(a.tradeSpendRate).toBe("0");
     expect(a.additionalReserveRate).toBe("0");
     expect(a.brokerRate).toBe("0");
     expect(a.useDistributor).toBe(false);
+    expect(a.tradeSpendMode).toBe("manual");
+    expect(a.promotions).toEqual([]);
+  });
+
+  it("new products start with an empty promotional calendar; the demo keeps its §99 seed", () => {
+    const fresh = assumptionsForProduct({ ...DEMO_PRODUCT, assumptionOverrides: undefined });
+    expect(fresh.tradeSpendMode).toBe("manual");
+    expect(fresh.promotions).toEqual([]);
+
+    const demo = assumptionsForProduct(DEMO_PRODUCT);
+    expect(demo.tradeSpendMode).toBe("calendar");
+    expect(demo.promotions).toHaveLength(2);
   });
 
   it("assumption overrides win over defaults", () => {

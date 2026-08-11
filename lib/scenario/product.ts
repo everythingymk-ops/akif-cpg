@@ -1,5 +1,5 @@
 import { buildDetailedCogs, type CogsComponent } from "@/lib/pricing-engine";
-import { DEMO_ASSUMPTIONS, type ScenarioAssumptions } from "./assumptions";
+import { DEMO_ASSUMPTIONS, DEMO_PROMOTIONS, type ScenarioAssumptions } from "./assumptions";
 
 /**
  * Product setup model (roadmap step 6): business structures (PRD §3),
@@ -244,7 +244,9 @@ export function effectiveCogsPerUnit(product: ProductSetup): string {
 /**
  * Initial pricing-screen assumptions for a product: route drives the
  * distributor leg, private label zeroes trade spend and broker by default
- * (PRD §52 — editable afterwards like everything else, PRD §97).
+ * (PRD §52 — editable afterwards like everything else, PRD §97). New
+ * products start with an empty promotional calendar in manual mode; explicit
+ * assumptionOverrides (like the demo's §99 calendar) win last.
  */
 export function assumptionsForProduct(product: ProductSetup): ScenarioAssumptions {
   const routeMeta = CHANNEL_ROUTES[product.route];
@@ -254,6 +256,8 @@ export function assumptionsForProduct(product: ProductSetup): ScenarioAssumption
     sku: product.basics.sku,
     cogsPerUnit: effectiveCogsPerUnit(product),
     useDistributor: routeMeta.usesDistributor,
+    tradeSpendMode: "manual",
+    promotions: [],
     currentSrpPerUnit: "",
     targetSrpPerUnit: "",
   };
@@ -291,5 +295,8 @@ export const DEMO_PRODUCT: ProductSetup = {
   assumptionOverrides: {
     currentSrpPerUnit: DEMO_ASSUMPTIONS.currentSrpPerUnit,
     targetSrpPerUnit: DEMO_ASSUMPTIONS.targetSrpPerUnit,
+    // §99 seed: the demo ships with its promotional calendar applied.
+    tradeSpendMode: "calendar",
+    promotions: DEMO_PROMOTIONS,
   },
 };

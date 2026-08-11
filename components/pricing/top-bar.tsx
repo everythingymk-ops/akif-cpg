@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Columns3, Contact, History, LayoutGrid, Plus, RotateCcw, Save } from "lucide-react";
+import { Columns3, Contact, Download, History, LayoutGrid, Plus, RotateCcw, Save } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -24,6 +24,8 @@ export interface ScenarioControls {
   onDuplicate: () => void;
   onCompare: () => void;
   onHistory: () => void;
+  /** Null while the model cannot be exported (calculation error). */
+  onExport: (() => void) | null;
 }
 
 export interface ProfileControls {
@@ -269,13 +271,22 @@ export function TopBar({
           <TooltipTrigger
             render={
               <span tabIndex={0} className="inline-flex">
-                <Button variant="outline" size="sm" className="h-8 text-xs" disabled>
-                  Export
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 gap-1 text-xs"
+                  disabled={scenario.onExport === null}
+                  onClick={scenario.onExport ?? undefined}
+                >
+                  <Download className="size-3" aria-hidden /> Export
                 </Button>
               </span>
             }
           />
-          <TooltipContent className="text-xs">CSV/Excel export arrives in a later step</TooltipContent>
+          <TooltipContent className="text-xs">
+            Download this scenario as CSV (opens in Excel): assumptions, waterfall, promotions,
+            trade spend, outputs, sensitivity
+          </TooltipContent>
         </Tooltip>
       </div>
     </header>

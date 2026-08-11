@@ -57,7 +57,30 @@ export interface ScenarioAssumptions {
   targetSrpPerUnit: string; // optional, empty = unset
 }
 
-/** In-memory demo product wired to the screen (roadmap step 5; numbers per PRD §99). */
+/** §99 seed calendar: BOGO 4wk/50%/2.0x + OI 8wk/15%/1.25x, 100% brand funded. */
+export const DEMO_PROMOTIONS: Promotion[] = [
+  {
+    id: "demo-bogo",
+    name: "BOGO",
+    type: "bogo",
+    events: "2",
+    weeks: "4",
+    discountRate: "0.50",
+    brandFundingRate: "1",
+    salesLift: "2.0",
+  },
+  {
+    id: "demo-oi",
+    name: "Off Invoice",
+    type: "offInvoice",
+    weeks: "8",
+    discountRate: "0.15",
+    brandFundingRate: "1",
+    salesLift: "1.25",
+  },
+];
+
+/** Demo product assumptions (PRD §99): calendar-mode trade spend ≈9.48% + 2% reserve. */
 export const DEMO_ASSUMPTIONS: ScenarioAssumptions = {
   productName: "Example Supplement 60 Count",
   sku: "DEMO-SUP-60",
@@ -81,10 +104,10 @@ export const DEMO_ASSUMPTIONS: ScenarioAssumptions = {
   brokerRate: "0.05",
   deductionsRate: "0.02",
 
-  tradeSpendMode: "manual",
+  tradeSpendMode: "calendar",
   tradeSpendRate: "0.0948",
   additionalReserveRate: "0.02",
-  promotions: [],
+  promotions: DEMO_PROMOTIONS,
   annualWeeks: "52",
   normalWeeklyUnits: "",
   plannerInvoiceReferencePerUnit: "",

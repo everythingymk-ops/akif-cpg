@@ -514,17 +514,24 @@ export function PromotionPlannerDialog({
                   free units, or another agreement.
                 </p>
               )}
-              <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={() => setBandsOpen(true)}>
-                <Pencil className="size-3" aria-hidden /> Edit planning bands
-              </Button>
             </div>
           </div>
         ) : null}
 
         <div className="flex items-center justify-between gap-3 border-t pt-3">
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            Cancel
-          </Button>
+          <div className="flex items-center gap-1.5">
+            <Button variant="ghost" size="sm" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 gap-1 text-xs text-muted-foreground"
+              onClick={() => setBandsOpen(true)}
+            >
+              <Pencil className="size-3" aria-hidden /> Edit planning bands
+            </Button>
+          </div>
           <Button size="sm" disabled={preview.plan === null} onClick={apply}>
             Apply to model
           </Button>
