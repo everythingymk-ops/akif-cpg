@@ -16,11 +16,15 @@ import {
   getSectionVisibility,
   type ProductSetup,
 } from "@/lib/scenario/product";
+import { resolveAssumptions, type AssumptionLayer } from "@/lib/scenario/priority";
+import { distributorProfileValues, retailerProfileValues } from "@/lib/scenario/profiles";
 import { buildAuditEntry, type AuditChange } from "@/lib/scenario/scenarios";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useBenchmarks } from "@/components/benchmarks/benchmark-provider";
+import { ProfileManagerDialog } from "@/components/profiles/profile-manager";
+import { useProfiles } from "@/components/profiles/profiles-provider";
 import { useProducts } from "@/components/setup/product-provider";
 import { AdvisorPanel } from "./advisor-panel";
 import { AllocationView } from "./allocation-view";
@@ -86,6 +90,7 @@ function ProductPricingScreen({ product }: { product: ProductSetup }) {
     createScenarioForActiveProduct,
   } = useProducts();
   const { tradeSpendBands } = useBenchmarks();
+  const { retailerProfiles, distributorProfiles } = useProfiles();
 
   const savedAssumptions = activeScenario?.assumptions ?? assumptionsForProduct(product);
   const [assumptions, setAssumptions] = useState<ScenarioAssumptions>(savedAssumptions);
@@ -96,7 +101,17 @@ function ProductPricingScreen({ product }: { product: ProductSetup }) {
   const [nameDialog, setNameDialog] = useState<"save" | "duplicate" | null>(null);
   const [compareOpen, setCompareOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
-  const visibility = getSectionVisibility(product.route);
+  const [profileManagerOpen, setProfileManagerOpen] = useState(false);
+  const [appliedRetailerId, setAppliedRetailerId] = useState<string | null>(null);
+  const [appliedDistributorId, setAppliedDistributorId] = useState<string | null>(null);
+
+  // Route-driven sections (PRD §12), widened when a customer profile turns
+  // the distributor leg on for a normally-direct route (PRD §47).
+  const routeVisibility = getSectionVisibility(product.route);
+  const visibility = {
+    ...routeVisibility,
+    distributor: routeVisibility.distributor || assumptions.useDistributor,
+  };
 
   // Bands can change while the planner is open; keep the latest for the
   // debounced recalculation without re-scheduling it.
@@ -190,6 +205,33 @@ function ProductPricingScreen({ product }: { product: ProductSetup }) {
     saveActiveScenario(assumptions, entry);
   };
 
+  // §45: profile economics enter as the "customer" layer over the working set.
+  const applyRetailerProfile = (id: string) => {
+    const profile = retailerProfiles.find((r) => r.id === id);
+    if (!profile) return;
+    const layers: AssumptionLayer[] = [
+      { scope: "customer", values: retailerProfileValues(profile) },
+    ];
+    // §47 default relationship: the retailer brings its usual distributor.
+    const defaultDistributor = profile.defaultDistributorProfileId
+      ? distributorProfiles.find((d) => d.id === profile.defaultDistributorProfileId) ?? null
+      : null;
+    layers.push({ scope: "customer", values: distributorProfileValues(defaultDistributor) });
+    const resolved = resolveAssumptions(assumptions, layers);
+    setAppliedRetailerId(id);
+    setAppliedDistributorId(defaultDistributor ? defaultDistributor.id : "direct");
+    applyAssumptions(resolved.assumptions);
+  };
+
+  const applyDistributorProfile = (id: string | null) => {
+    const profile = id ? distributorProfiles.find((d) => d.id === id) ?? null : null;
+    const resolved = resolveAssumptions(assumptions, [
+      { scope: "customer", values: distributorProfileValues(profile) },
+    ]);
+    setAppliedDistributorId(profile ? profile.id : "direct");
+    applyAssumptions(resolved.assumptions);
+  };
+
   return (
     <TooltipProvider delay={200}>
       <div className="flex min-h-dvh flex-col bg-background">
@@ -208,6 +250,15 @@ function ProductPricingScreen({ product }: { product: ProductSetup }) {
             onDuplicate: () => setNameDialog("duplicate"),
             onCompare: () => setCompareOpen(true),
             onHistory: () => setHistoryOpen(true),
+          }}
+          profiles={{
+            retailers: retailerProfiles.map(({ id, name }) => ({ id, name })),
+            distributors: distributorProfiles.map(({ id, name }) => ({ id, name })),
+            appliedRetailerId,
+            appliedDistributorId,
+            onApplyRetailer: applyRetailerProfile,
+            onApplyDistributor: applyDistributorProfile,
+            onManage: () => setProfileManagerOpen(true),
           }}
         />
 
@@ -307,6 +358,10 @@ function ProductPricingScreen({ product }: { product: ProductSetup }) {
 
         {historyOpen && activeScenario && (
           <ScenarioHistoryDialog scenario={activeScenario} onClose={() => setHistoryOpen(false)} />
+        )}
+
+        {profileManagerOpen && (
+          <ProfileManagerDialog onClose={() => setProfileManagerOpen(false)} />
         )}
       </div>
     </TooltipProvider>

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Columns3, History, Plus, RotateCcw, Save } from "lucide-react";
+import { Columns3, Contact, History, LayoutGrid, Plus, RotateCcw, Save } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -26,6 +26,17 @@ export interface ScenarioControls {
   onHistory: () => void;
 }
 
+export interface ProfileControls {
+  retailers: { id: string; name: string }[];
+  distributors: { id: string; name: string }[];
+  appliedRetailerId: string | null;
+  appliedDistributorId: string | null;
+  onApplyRetailer: (id: string) => void;
+  /** null applies the direct (no distributor) relationship. */
+  onApplyDistributor: (id: string | null) => void;
+  onManage: () => void;
+}
+
 /**
  * Top bar (PRD §58): product switcher, scenario switcher and the §70 actions.
  * Export still waits for its roadmap step and says so.
@@ -37,6 +48,7 @@ export function TopBar({
   routeLabel,
   onReset,
   scenario,
+  profiles,
 }: {
   products: { id: string; name: string }[];
   activeProductId: string;
@@ -44,6 +56,7 @@ export function TopBar({
   routeLabel: string;
   onReset: () => void;
   scenario: ScenarioControls;
+  profiles: ProfileControls;
 }) {
   const activeScenarioName =
     scenario.scenarios.find((s) => s.id === scenario.activeScenarioId)?.name ?? "No scenario";
@@ -81,6 +94,92 @@ export function TopBar({
       >
         <Plus className="size-3" aria-hidden /> New product
       </Link>
+
+      <Link
+        href="/portfolio"
+        className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-8 gap-1 text-xs")}
+      >
+        <LayoutGrid className="size-3" aria-hidden /> Portfolio
+      </Link>
+
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <span className="inline-flex">
+              <Select
+                value={profiles.appliedRetailerId ?? ""}
+                onValueChange={(value) => {
+                  if (value) profiles.onApplyRetailer(value);
+                }}
+              >
+                <SelectTrigger size="sm" className="w-[150px] text-xs" aria-label="Retailer profile">
+                  <SelectValue>
+                    {profiles.appliedRetailerId
+                      ? profiles.retailers.find((r) => r.id === profiles.appliedRetailerId)?.name
+                      : "Retailer…"}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {profiles.retailers.length === 0 && (
+                    <SelectItem value="none" disabled>
+                      No profiles yet
+                    </SelectItem>
+                  )}
+                  {profiles.retailers.map((r) => (
+                    <SelectItem key={r.id} value={r.id}>
+                      {r.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </span>
+          }
+        />
+        <TooltipContent className="text-xs">
+          Apply a retailer profile&apos;s economics to this scenario (customer priority, §45)
+        </TooltipContent>
+      </Tooltip>
+
+      <Select
+        value={profiles.appliedDistributorId ?? ""}
+        onValueChange={(value) => {
+          if (value) profiles.onApplyDistributor(value === "direct" ? null : value);
+        }}
+      >
+        <SelectTrigger size="sm" className="w-[150px] text-xs" aria-label="Distributor profile">
+          <SelectValue>
+            {profiles.appliedDistributorId === null
+              ? "Distributor…"
+              : profiles.appliedDistributorId === "direct"
+                ? "Direct (no distributor)"
+                : profiles.distributors.find((d) => d.id === profiles.appliedDistributorId)?.name}
+          </SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="direct">Direct (no distributor)</SelectItem>
+          {profiles.distributors.map((d) => (
+            <SelectItem key={d.id} value={d.id}>
+              {d.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 gap-1 text-xs"
+              onClick={profiles.onManage}
+            >
+              <Contact className="size-3" aria-hidden /> Profiles
+            </Button>
+          }
+        />
+        <TooltipContent className="text-xs">Manage retailer & distributor profiles</TooltipContent>
+      </Tooltip>
 
       <Select
         value={scenario.activeScenarioId ?? ""}

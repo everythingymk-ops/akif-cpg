@@ -76,6 +76,47 @@ describe("LocalStorageRepository", () => {
     expect(state?.ui.activeProductId).toBe(DEMO_PRODUCT.id);
   });
 
+  it("round-trips profiles and portfolio settings (step 10)", async () => {
+    const repo = new LocalStorageRepository();
+    await repo.saveDistributorProfiles([
+      { id: "d1", name: "UNFI", marginBasis: "margin", marginRate: "0.18", handlingFeePerUnit: "0.65", notes: "" },
+    ]);
+    await repo.saveRetailerProfiles([
+      {
+        id: "r1",
+        name: "Albertsons",
+        channel: "Grocery",
+        defaultDistributorProfileId: "d1",
+        retailerMarginBasis: "margin",
+        retailerMarginRate: "0.42",
+        brokerRate: "0.03",
+        deductionsRate: "",
+        tradeSpendRate: "",
+        paymentTerms: "Net 30",
+        notes: "",
+      },
+    ]);
+    await repo.savePortfolioSettings({ redContributionBelow: "0.01", greenTargetTolerance: "0.005" });
+
+    const state = await repo.loadState();
+    expect(state?.retailerProfiles[0].name).toBe("Albertsons");
+    expect(state?.retailerProfiles[0].defaultDistributorProfileId).toBe("d1");
+    expect(state?.distributorProfiles[0].marginRate).toBe("0.18");
+    expect(state?.portfolioSettings.redContributionBelow).toBe("0.01");
+  });
+
+  it("older blobs without profile fields normalize to defaults", async () => {
+    const repo = new LocalStorageRepository();
+    (globals.window as { localStorage: Storage }).localStorage.setItem(
+      "akif-cpg/workspace/v1",
+      JSON.stringify({ version: 1, products: [DEMO_PRODUCT], scenarios: [] }),
+    );
+    const state = await repo.loadState();
+    expect(state?.retailerProfiles).toEqual([]);
+    expect(state?.distributorProfiles).toEqual([]);
+    expect(state?.portfolioSettings.redContributionBelow).toBe("0");
+  });
+
   it("treats corrupted JSON as first run instead of crashing", async () => {
     const repo = new LocalStorageRepository();
     (globals.window as { localStorage: Storage }).localStorage.setItem(

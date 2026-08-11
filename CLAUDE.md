@@ -57,7 +57,7 @@ Update the Status column when a step is completed and verified. One step per run
 | 7 | Promotion Planner UI + trade-spend coach + editable benchmark bands (§24, §77–78) | done (2026-08-11) |
 | 8 | Reverse-pricing UI, sensitivity UI + scenario matrix, "Improve Economics" (§73), dollar allocation view (§43) | done (2026-08-11) |
 | 9 | Scenarios: save/duplicate/compare, assumption audit trail, localStorage persistence layer behind repository interface | done (2026-08-12) |
-| 10 | Portfolio screen, retailer & distributor profiles, assumption priority resolution (SKU+customer > customer > SKU > global, §45) | not started |
+| 10 | Portfolio screen, retailer & distributor profiles, assumption priority resolution (SKU+customer > customer > SKU > global, §45) | done (2026-08-12) |
 | 11 | CSV/Excel export, seed demo "Example Supplement 60 Count" (§99), full validation pass, polish | not started |
 
 ## Working conventions

@@ -1,5 +1,5 @@
 import { DEFAULT_TRADE_SPEND_BANDS } from "@/lib/pricing-engine";
-import type { AkifRepository, PersistedState } from "./types";
+import { DEFAULT_PORTFOLIO_SETTINGS, type AkifRepository, type PersistedState } from "./types";
 
 /**
  * localStorage-backed repository (MVP). One namespaced key holds the whole
@@ -25,6 +25,9 @@ function emptyState(): PersistedState {
     products: [],
     scenarios: [],
     tradeSpendBands: [...DEFAULT_TRADE_SPEND_BANDS],
+    retailerProfiles: [],
+    distributorProfiles: [],
+    portfolioSettings: { ...DEFAULT_PORTFOLIO_SETTINGS },
     ui: {},
   };
 }
@@ -50,6 +53,14 @@ function readState(storage: Storage): PersistedState | null {
       tradeSpendBands: Array.isArray(state.tradeSpendBands)
         ? state.tradeSpendBands
         : [...DEFAULT_TRADE_SPEND_BANDS],
+      retailerProfiles: Array.isArray(state.retailerProfiles) ? state.retailerProfiles : [],
+      distributorProfiles: Array.isArray(state.distributorProfiles)
+        ? state.distributorProfiles
+        : [],
+      portfolioSettings:
+        typeof state.portfolioSettings === "object" && state.portfolioSettings !== null
+          ? { ...DEFAULT_PORTFOLIO_SETTINGS, ...state.portfolioSettings }
+          : { ...DEFAULT_PORTFOLIO_SETTINGS },
       ui: typeof state.ui === "object" && state.ui !== null ? state.ui : {},
     };
   } catch {
@@ -82,6 +93,18 @@ export class LocalStorageRepository implements AkifRepository {
 
   async saveTradeSpendBands(bands: PersistedState["tradeSpendBands"]): Promise<void> {
     writePatch({ tradeSpendBands: [...bands] });
+  }
+
+  async saveRetailerProfiles(profiles: PersistedState["retailerProfiles"]): Promise<void> {
+    writePatch({ retailerProfiles: profiles });
+  }
+
+  async saveDistributorProfiles(profiles: PersistedState["distributorProfiles"]): Promise<void> {
+    writePatch({ distributorProfiles: profiles });
+  }
+
+  async savePortfolioSettings(settings: PersistedState["portfolioSettings"]): Promise<void> {
+    writePatch({ portfolioSettings: settings });
   }
 
   async saveUiState(ui: PersistedState["ui"]): Promise<void> {

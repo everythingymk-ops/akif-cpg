@@ -32,6 +32,10 @@ interface ProductContextValue {
   activeProduct: ProductSetup;
   setActiveProductId: (id: string) => void;
   addProduct: (product: ProductSetup) => void;
+  /** All scenarios across products (portfolio view, PRD §44). */
+  scenarios: Scenario[];
+  /** Active scenario id per product id. */
+  activeScenarioIdByProduct: Record<string, string>;
   /** Scenarios of the active product, newest last (PRD §37, §70). */
   scenariosForActiveProduct: Scenario[];
   activeScenario: Scenario | null;
@@ -116,6 +120,8 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
     return {
       products,
       activeProduct,
+      scenarios,
+      activeScenarioIdByProduct: activeScenarioByProduct,
       scenariosForActiveProduct,
       activeScenario,
 
