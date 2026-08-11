@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "export:static": "STATIC_EXPORT=1 next build"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
