@@ -11,6 +11,7 @@ import {
   dec,
   findTradeSpendBand,
   impliedBrandInvoiceAtShelf,
+  marginRateOf,
   priceManufacturerSale,
   priceRetailerShelf,
   priceThroughDistributor,
@@ -77,6 +78,8 @@ export interface ComputedScenario {
   requiredSrpTrace: CalculationTrace;
   requiredNetRevenuePerUnit: Decimal;
   retailerAcquisitionAtRequired: Decimal;
+  /** Brand gross margin at the required invoice: (invoice − landed) ÷ invoice (§37). */
+  brandGrossMarginRate: Decimal;
   atCurrentSrp?: {
     srpPerUnit: Decimal;
     impliedInvoicePerUnit: Decimal;
@@ -486,6 +489,7 @@ function compute(a: ScenarioAssumptions, options?: ScenarioOptions): ComputedSce
     requiredSrpTrace: required.trace,
     requiredNetRevenuePerUnit: required.netRevenuePerUnit,
     retailerAcquisitionAtRequired: required.retailerAcquisitionCostPerUnit,
+    brandGrossMarginRate: marginRateOf(landed.landedCostPerUnit, required.requiredInvoicePerUnit),
     atCurrentSrp,
     priceGap,
     breakEvenSrpPerUnit,

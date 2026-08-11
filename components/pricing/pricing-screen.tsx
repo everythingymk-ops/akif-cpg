@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { TriangleAlert } from "lucide-react";
 import type { TradeSpendBand } from "@/lib/pricing-engine";
 import type { ScenarioAssumptions } from "@/lib/scenario/assumptions";
@@ -9,12 +9,14 @@ import {
   type ComputedScenario,
   type ScenarioOptions,
 } from "@/lib/scenario/computeScenario";
+import { formatMoney, formatPercent } from "@/lib/scenario/format";
 import {
   CHANNEL_ROUTES,
   assumptionsForProduct,
   getSectionVisibility,
   type ProductSetup,
 } from "@/lib/scenario/product";
+import { buildAuditEntry, type AuditChange } from "@/lib/scenario/scenarios";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -25,6 +27,11 @@ import { AllocationView } from "./allocation-view";
 import { AssumptionsPanel } from "./assumptions-panel";
 import { PromotionPlannerDialog } from "./promotion-planner";
 import { ReverseView } from "./reverse-view";
+import {
+  CompareScenariosDialog,
+  ScenarioHistoryDialog,
+  ScenarioNameDialog,
+} from "./scenario-dialogs";
 import { SensitivityView } from "./sensitivity-view";
 import { SummaryCards } from "./summary-cards";
 import { TopBar } from "./top-bar";
@@ -48,43 +55,47 @@ function evaluate(
     : { scenario: previous, error: computation.error };
 }
 
-/** Route-level shell: remounts the screen state when the product changes. */
+/**
+ * Route-level shell: remounts the screen state when the product or the
+ * active scenario changes, so working assumptions always start from the
+ * saved snapshot.
+ */
 export function PricingScreen() {
-  const { products, activeProduct, setActiveProductId } = useProducts();
+  const { activeProduct, activeScenario } = useProducts();
   return (
     <ProductPricingScreen
-      key={activeProduct.id}
+      key={`${activeProduct.id}:${activeScenario?.id ?? "none"}`}
       product={activeProduct}
-      products={products}
-      onSelectProduct={setActiveProductId}
     />
   );
 }
 
 /**
- * Main pricing screen (PRD §58): top bar, summary cards, assumptions on the
- * left, price waterfall in the center, Commercial Advisor on the right.
- * Inputs recalculate live with a short debounce (PRD §60); while an input is
- * mid-edit and invalid, the last good model stays on screen next to an
- * explicit error banner. Section visibility follows the product's route
- * (PRD §12).
+ * Main pricing screen (PRD §58) with the scenario lifecycle (PRD §37, §68,
+ * §70): live debounced recalc, explicit Save with an audit entry, Duplicate,
+ * Compare and History.
  */
-function ProductPricingScreen({
-  product,
-  products,
-  onSelectProduct,
-}: {
-  product: ProductSetup;
-  products: ProductSetup[];
-  onSelectProduct: (id: string) => void;
-}) {
+function ProductPricingScreen({ product }: { product: ProductSetup }) {
+  const {
+    products,
+    setActiveProductId,
+    scenariosForActiveProduct,
+    activeScenario,
+    setActiveScenarioId,
+    saveActiveScenario,
+    createScenarioForActiveProduct,
+  } = useProducts();
   const { tradeSpendBands } = useBenchmarks();
-  const initialAssumptions = assumptionsForProduct(product);
-  const [assumptions, setAssumptions] = useState<ScenarioAssumptions>(initialAssumptions);
+
+  const savedAssumptions = activeScenario?.assumptions ?? assumptionsForProduct(product);
+  const [assumptions, setAssumptions] = useState<ScenarioAssumptions>(savedAssumptions);
   const [model, setModel] = useState<ScreenModel>(() =>
-    evaluate(initialAssumptions, null, { tradeSpendBands }),
+    evaluate(savedAssumptions, null, { tradeSpendBands }),
   );
   const [plannerOpen, setPlannerOpen] = useState(false);
+  const [nameDialog, setNameDialog] = useState<"save" | "duplicate" | null>(null);
+  const [compareOpen, setCompareOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const visibility = getSectionVisibility(product.route);
 
   // Bands can change while the planner is open; keep the latest for the
@@ -103,11 +114,9 @@ function ProductPricingScreen({
 
   // Latest applied assumptions, for handlers whose render closure may be
   // stale (e.g. the planner's close handler right after Apply).
-  const assumptionsRef = useRef<ScenarioAssumptions>(initialAssumptions);
+  const assumptionsRef = useRef<ScenarioAssumptions>(savedAssumptions);
 
   // Debounced recalculation (PRD §60), scheduled from the change handler.
-  // The engine runs once in the timer callback; the state updater itself
-  // stays cheap and pure.
   const applyAssumptions = (next: ScenarioAssumptions) => {
     assumptionsRef.current = next;
     setAssumptions(next);
@@ -134,15 +143,72 @@ function ProductPricingScreen({
     applyAssumptions(assumptionsRef.current);
   };
 
+  const dirty = useMemo(
+    () => JSON.stringify(assumptions) !== JSON.stringify(savedAssumptions),
+    [assumptions, savedAssumptions],
+  );
+
+  // §68: pair the assumption diff with the headline output shifts.
+  const buildOutputChanges = (): AuditChange[] => {
+    if (!activeScenario) return [];
+    const before = computeScenario(activeScenario.assumptions, { tradeSpendBands });
+    const after = computeScenario(assumptions, { tradeSpendBands });
+    if (!before.ok || !after.ok) return [];
+    const changes: AuditChange[] = [];
+    if (!before.scenario.requiredSrpPerUnit.equals(after.scenario.requiredSrpPerUnit)) {
+      changes.push({
+        field: "requiredSrp",
+        label: "Required SRP",
+        from: formatMoney(before.scenario.requiredSrpPerUnit),
+        to: formatMoney(after.scenario.requiredSrpPerUnit),
+      });
+    }
+    const beforeCm = before.scenario.atCurrentSrp?.contribution.contributionMarginRate;
+    const afterCm = after.scenario.atCurrentSrp?.contribution.contributionMarginRate;
+    if (beforeCm && afterCm && !beforeCm.equals(afterCm)) {
+      changes.push({
+        field: "contributionMargin",
+        label: "Contribution",
+        from: formatPercent(beforeCm),
+        to: formatPercent(afterCm),
+      });
+    }
+    return changes;
+  };
+
+  const handleSave = () => {
+    if (!activeScenario) {
+      setNameDialog("save");
+      return;
+    }
+    const entry = buildAuditEntry(
+      activeScenario.assumptions,
+      assumptions,
+      new Date().toISOString(),
+      buildOutputChanges(),
+    );
+    saveActiveScenario(assumptions, entry);
+  };
+
   return (
     <TooltipProvider delay={200}>
       <div className="flex min-h-dvh flex-col bg-background">
         <TopBar
           products={products.map(({ id, basics }) => ({ id, name: basics.name }))}
           activeProductId={product.id}
-          onSelectProduct={onSelectProduct}
+          onSelectProduct={setActiveProductId}
           routeLabel={`Route ${product.route}: ${CHANNEL_ROUTES[product.route].label}`}
-          onReset={() => applyAssumptions(assumptionsForProduct(product))}
+          onReset={() => applyAssumptions(savedAssumptions)}
+          scenario={{
+            scenarios: scenariosForActiveProduct.map(({ id, name }) => ({ id, name })),
+            activeScenarioId: activeScenario?.id ?? null,
+            dirty,
+            onSelectScenario: setActiveScenarioId,
+            onSave: handleSave,
+            onDuplicate: () => setNameDialog("duplicate"),
+            onCompare: () => setCompareOpen(true),
+            onHistory: () => setHistoryOpen(true),
+          }}
         />
 
         <main className="flex flex-1 flex-col gap-3 p-3 lg:p-4">
@@ -215,6 +281,32 @@ function ProductPricingScreen({
             onApply={update}
             onClose={closePlanner}
           />
+        )}
+
+        {nameDialog !== null && (
+          <ScenarioNameDialog
+            title={nameDialog === "save" ? "Save scenario" : "Duplicate scenario"}
+            defaultName={
+              nameDialog === "duplicate" && activeScenario
+                ? `${activeScenario.name} (copy)`
+                : "Base"
+            }
+            takenNames={scenariosForActiveProduct.map((s) => s.name)}
+            onSubmit={(name) => createScenarioForActiveProduct(name, assumptions)}
+            onClose={() => setNameDialog(null)}
+          />
+        )}
+
+        {compareOpen && (
+          <CompareScenariosDialog
+            scenarios={scenariosForActiveProduct}
+            tradeSpendBands={tradeSpendBands}
+            onClose={() => setCompareOpen(false)}
+          />
+        )}
+
+        {historyOpen && activeScenario && (
+          <ScenarioHistoryDialog scenario={activeScenario} onClose={() => setHistoryOpen(false)} />
         )}
       </div>
     </TooltipProvider>
