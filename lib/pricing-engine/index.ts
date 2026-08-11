@@ -10,3 +10,4 @@ export * from "./manufacturing";
 export * from "./landedCost";
 export * from "./distribution";
 export * from "./retailer";
+export * from "./tradeSpend";

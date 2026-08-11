@@ -49,7 +49,7 @@ Update the Status column when a step is completed and verified. One step per run
 |---|---|---|
 | 0 | Scaffold: Next.js + TS + Tailwind + shadcn/ui + Vitest + Decimal.js; app boots, one dummy test passes; no business logic | done (2026-08-11) |
 | 1 | Engine core: `types.ts`, Decimal money/percent helpers, manufacturing (margin/markup), landed cost (cost lines + selectable tariff basis), distributor, retailer math + unit tests incl. margin/markup/retailer-SRP acceptance tests | done (2026-08-11) |
-| 2 | Trade spend engine: promotion model, effective annual trade spend (normalized weeks + actual-units mode), fixed event fees, additional reserve + the 9.48% acceptance test | not started |
+| 2 | Trade spend engine: promotion model, effective annual trade spend (normalized weeks + actual-units mode), fixed event fees, additional reserve + the 9.48% acceptance test | done (2026-08-11) |
 | 3 | Contribution + gross-to-net, reverse pricing (max brand invoice / max landed cost / max COGS), price gap, break-even engine + tests | not started |
 | 4 | Sensitivity (1-variable tables + 2-variable matrix), validation warnings (§71), Advisor rule engine (numeric insights, Critical/Warning/Opportunity) + tests | not started |
 | 5 | UI shell + main pricing screen: top bar, summary cards, left assumption accordions, center price waterfall, right Advisor panel; live debounced recalc; editable-vs-calculated styling; wired to an in-memory demo product | not started |
