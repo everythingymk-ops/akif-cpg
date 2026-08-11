@@ -1,16 +1,26 @@
 "use client";
 
+import { useState } from "react";
+import { CalendarRange } from "lucide-react";
 import type { ScenarioAssumptions } from "@/lib/scenario/assumptions";
+import { tangibleTradeSpend } from "@/lib/scenario/coach";
 import type { ComputedScenario } from "@/lib/scenario/computeScenario";
 import type { SectionVisibility } from "@/lib/scenario/product";
-import { formatMoney, formatPercent } from "@/lib/scenario/format";
+import {
+  formatMoney,
+  formatMoneyWhole,
+  formatPercent,
+  tryDec,
+} from "@/lib/scenario/format";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import { BasisSelect, CalculatedValue, MoneyField, PercentField } from "./inputs";
 
 interface AssumptionsPanelProps {
@@ -19,6 +29,33 @@ interface AssumptionsPanelProps {
   /** Route-driven section visibility (PRD §12): hidden sections disappear. */
   visibility: SectionVisibility;
   onChange: (patch: Partial<ScenarioAssumptions>) => void;
+  onOpenPlanner: () => void;
+}
+
+function ModeButton({
+  selected,
+  onClick,
+  children,
+}: {
+  selected: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={selected}
+      onClick={onClick}
+      className={cn(
+        "rounded-md border px-2 py-1.5 text-xs transition-colors",
+        selected
+          ? "border-blue-400 bg-blue-50/60 font-semibold text-blue-900 dark:border-blue-700 dark:bg-blue-950/40 dark:text-blue-200"
+          : "border-border text-muted-foreground hover:bg-accent/50",
+      )}
+    >
+      {children}
+    </button>
+  );
 }
 
 /**
@@ -32,7 +69,12 @@ export function AssumptionsPanel({
   scenario,
   visibility,
   onChange,
+  onOpenPlanner,
 }: AssumptionsPanelProps) {
+  // §77 nudge: dismissable per session ("Keep X%").
+  const [nudgeDismissed, setNudgeDismissed] = useState(false);
+  const manualRate = tryDec(assumptions.tradeSpendRate);
+  const manualCoach = manualRate ? tangibleTradeSpend(manualRate) : null;
   return (
     <Card className="gap-3 py-4">
       <CardHeader className="px-4">
@@ -192,12 +234,78 @@ export function AssumptionsPanel({
             <AccordionItem value="promotions">
               <AccordionTrigger className="py-3 text-sm">Promotions & trade spend</AccordionTrigger>
               <AccordionContent className="space-y-3 pb-3">
-                <PercentField
-                  label="Promotional trade spend (% of gross)"
-                  rate={assumptions.tradeSpendRate}
-                  onChange={(tradeSpendRate) => onChange({ tradeSpendRate })}
-                  hint="Manual mode. Building this rate from an actual promotional calendar arrives with the Promotion Planner."
-                />
+                <div className="grid grid-cols-2 gap-2">
+                  <ModeButton
+                    selected={assumptions.tradeSpendMode === "manual"}
+                    onClick={() => onChange({ tradeSpendMode: "manual" })}
+                  >
+                    Manual %
+                  </ModeButton>
+                  <ModeButton
+                    selected={assumptions.tradeSpendMode === "calendar"}
+                    onClick={() =>
+                      assumptions.promotions.length > 0
+                        ? onChange({ tradeSpendMode: "calendar" })
+                        : onOpenPlanner()
+                    }
+                  >
+                    Promotional calendar
+                  </ModeButton>
+                </div>
+
+                {assumptions.tradeSpendMode === "manual" ? (
+                  <>
+                    <PercentField
+                      label="Promotional trade spend (% of gross)"
+                      rate={assumptions.tradeSpendRate}
+                      onChange={(tradeSpendRate) => onChange({ tradeSpendRate })}
+                    />
+                    {manualCoach && manualRate && (
+                      <p className="text-xs text-muted-foreground">
+                        You have allocated {formatPercent(manualRate, 2)} of gross invoice sales to
+                        trade spend. At {formatMoneyWhole(manualCoach.grossSales)} gross →{" "}
+                        {formatMoneyWhole(manualCoach.tradeSpendDollars)} trade spend,{" "}
+                        {formatMoneyWhole(manualCoach.netAfterTradeDollars)} net after trade.
+                      </p>
+                    )}
+                    {!nudgeDismissed && manualRate && (
+                      <div className="space-y-2 rounded-md border border-violet-300 bg-violet-50/60 px-2.5 py-2 dark:border-violet-900 dark:bg-violet-950/30">
+                        <p className="text-xs">
+                          Would you like to build this {formatPercent(manualRate, 2)} from actual
+                          planned promotions?
+                        </p>
+                        <div className="flex gap-1.5">
+                          <Button size="sm" className="h-6 px-2 text-xs" onClick={onOpenPlanner}>
+                            Build promotions
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 px-2 text-xs"
+                            onClick={() => setNudgeDismissed(true)}
+                          >
+                            Keep {formatPercent(manualRate, 2)}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <CalculatedValue label="Promotions in calendar">
+                      {String(assumptions.promotions.length)}
+                    </CalculatedValue>
+                    {scenario?.tradeSpend.plan && (
+                      <CalculatedValue label="Effective promotional rate">
+                        {formatPercent(scenario.tradeSpend.promotionalRate, 2)}
+                      </CalculatedValue>
+                    )}
+                    <Button variant="outline" size="sm" className="w-full gap-1.5 text-xs" onClick={onOpenPlanner}>
+                      <CalendarRange className="size-3.5" aria-hidden /> Open Promotion Planner
+                    </Button>
+                  </>
+                )}
+
                 <PercentField
                   label="Additional trade reserve"
                   rate={assumptions.additionalReserveRate}
@@ -205,9 +313,16 @@ export function AssumptionsPanel({
                   hint="Reserve for unplanned TPRs, markdowns, deductions and promotional leakage on top of the planned rate."
                 />
                 {scenario && (
-                  <CalculatedValue label="Total planned trade spend">
-                    {formatPercent(scenario.tradeSpend.totalRate, 2)}
-                  </CalculatedValue>
+                  <>
+                    <CalculatedValue label="Total planned trade spend">
+                      {formatPercent(scenario.tradeSpend.totalRate, 2)}
+                    </CalculatedValue>
+                    {scenario.tradeSpend.band && (
+                      <p className="text-xs text-muted-foreground">
+                        {scenario.tradeSpend.band.label}: {scenario.tradeSpend.band.guidance}
+                      </p>
+                    )}
+                  </>
                 )}
               </AccordionContent>
             </AccordionItem>

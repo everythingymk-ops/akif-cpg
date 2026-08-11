@@ -20,6 +20,14 @@ export function formatPercentPoints(value: Decimal, decimalPlaces = 1): string {
   return `${points.isNegative() ? "−" : "+"}${points.abs().toString()} pp`;
 }
 
+/** Whole-dollar display with thousands separators: 114800 → "$114,800". */
+export function formatMoneyWhole(value: Decimal, currency = "$"): string {
+  const rounded = roundMoney(value, 0);
+  const sign = rounded.isNegative() ? "−" : "";
+  const digits = rounded.abs().toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return `${sign}${currency}${digits}`;
+}
+
 /** Compact numeric string for trace values (up to 6 dp, trimmed). */
 export function formatNumber(value: Decimal, decimalPlaces = 6): string {
   return value.toDecimalPlaces(decimalPlaces).toString();

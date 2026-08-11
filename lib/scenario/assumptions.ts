@@ -1,4 +1,4 @@
-import type { MarginBasis } from "@/lib/pricing-engine";
+import type { MarginBasis, Promotion } from "@/lib/pricing-engine";
 
 /**
  * Editable assumption set backing the main pricing screen (PRD §58, §97).
@@ -35,9 +35,21 @@ export interface ScenarioAssumptions {
   brokerRate: string; // % of invoice, variable cost
   deductionsRate: string; // % of invoice, revenue deduction
 
-  // Trade spend — manual mode (PRD §16 Mode A, §23); calendar mode is step 7.
+  // Trade spend (PRD §16): Mode A manual rate, or Mode B built from the
+  // promotional calendar (strongly encouraged). Reserve applies to both (§23).
+  tradeSpendMode: "manual" | "calendar";
   tradeSpendRate: string;
   additionalReserveRate: string;
+  /** Calendar mode (PRD §17): promotion rows; values entered as strings. */
+  promotions: Promotion[];
+  /** Planning horizon in weeks (PRD §21). */
+  annualWeeks: string;
+  /**
+   * Actual-units context (PRD §21): required when promotions carry fixed
+   * event fees, flat costs or unit forecasts; empty otherwise.
+   */
+  normalWeeklyUnits: string;
+  plannerInvoiceReferencePerUnit: string;
 
   // Targets & shelf (PRD §30–32, §95)
   targetContributionRate: string;
@@ -69,8 +81,13 @@ export const DEMO_ASSUMPTIONS: ScenarioAssumptions = {
   brokerRate: "0.05",
   deductionsRate: "0.02",
 
+  tradeSpendMode: "manual",
   tradeSpendRate: "0.0948",
   additionalReserveRate: "0.02",
+  promotions: [],
+  annualWeeks: "52",
+  normalWeeklyUnits: "",
+  plannerInvoiceReferencePerUnit: "",
 
   targetContributionRate: "0.08",
   currentSrpPerUnit: "19.99",

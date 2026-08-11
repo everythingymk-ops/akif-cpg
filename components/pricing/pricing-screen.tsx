@@ -2,8 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { TriangleAlert } from "lucide-react";
+import type { TradeSpendBand } from "@/lib/pricing-engine";
 import type { ScenarioAssumptions } from "@/lib/scenario/assumptions";
-import { computeScenario, type ComputedScenario } from "@/lib/scenario/computeScenario";
+import {
+  computeScenario,
+  type ComputedScenario,
+  type ScenarioOptions,
+} from "@/lib/scenario/computeScenario";
 import {
   CHANNEL_ROUTES,
   assumptionsForProduct,
@@ -12,9 +17,11 @@ import {
 } from "@/lib/scenario/product";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { useBenchmarks } from "@/components/benchmarks/benchmark-provider";
 import { useProducts } from "@/components/setup/product-provider";
 import { AdvisorPanel } from "./advisor-panel";
 import { AssumptionsPanel } from "./assumptions-panel";
+import { PromotionPlannerDialog } from "./promotion-planner";
 import { SummaryCards } from "./summary-cards";
 import { TopBar } from "./top-bar";
 import { Waterfall } from "./waterfall";
@@ -26,8 +33,12 @@ interface ScreenModel {
   error: string | null;
 }
 
-function evaluate(assumptions: ScenarioAssumptions, previous: ComputedScenario | null): ScreenModel {
-  const computation = computeScenario(assumptions);
+function evaluate(
+  assumptions: ScenarioAssumptions,
+  previous: ComputedScenario | null,
+  options: ScenarioOptions,
+): ScreenModel {
+  const computation = computeScenario(assumptions, options);
   return computation.ok
     ? { scenario: computation.scenario, error: null }
     : { scenario: previous, error: computation.error };
@@ -63,10 +74,21 @@ function ProductPricingScreen({
   products: ProductSetup[];
   onSelectProduct: (id: string) => void;
 }) {
+  const { tradeSpendBands } = useBenchmarks();
   const initialAssumptions = assumptionsForProduct(product);
   const [assumptions, setAssumptions] = useState<ScenarioAssumptions>(initialAssumptions);
-  const [model, setModel] = useState<ScreenModel>(() => evaluate(initialAssumptions, null));
+  const [model, setModel] = useState<ScreenModel>(() =>
+    evaluate(initialAssumptions, null, { tradeSpendBands }),
+  );
+  const [plannerOpen, setPlannerOpen] = useState(false);
   const visibility = getSectionVisibility(product.route);
+
+  // Bands can change while the planner is open; keep the latest for the
+  // debounced recalculation without re-scheduling it.
+  const bandsRef = useRef<readonly TradeSpendBand[]>(tradeSpendBands);
+  useEffect(() => {
+    bandsRef.current = tradeSpendBands;
+  }, [tradeSpendBands]);
 
   const recalcTimerRef = useRef<number | null>(null);
   useEffect(() => {
@@ -75,14 +97,19 @@ function ProductPricingScreen({
     };
   }, []);
 
+  // Latest applied assumptions, for handlers whose render closure may be
+  // stale (e.g. the planner's close handler right after Apply).
+  const assumptionsRef = useRef<ScenarioAssumptions>(initialAssumptions);
+
   // Debounced recalculation (PRD §60), scheduled from the change handler.
   // The engine runs once in the timer callback; the state updater itself
   // stays cheap and pure.
   const applyAssumptions = (next: ScenarioAssumptions) => {
+    assumptionsRef.current = next;
     setAssumptions(next);
     if (recalcTimerRef.current !== null) window.clearTimeout(recalcTimerRef.current);
     recalcTimerRef.current = window.setTimeout(() => {
-      const computation = computeScenario(next);
+      const computation = computeScenario(next, { tradeSpendBands: bandsRef.current });
       setModel((previous) =>
         computation.ok
           ? { scenario: computation.scenario, error: null }
@@ -94,6 +121,14 @@ function ProductPricingScreen({
   const { scenario, error } = model;
   const update = (patch: Partial<ScenarioAssumptions>) =>
     applyAssumptions({ ...assumptions, ...patch });
+
+  const closePlanner = () => {
+    setPlannerOpen(false);
+    // Bands may have been edited inside the planner — refresh the model with
+    // the LATEST assumptions (the render closure would undo a just-applied
+    // plan).
+    applyAssumptions(assumptionsRef.current);
+  };
 
   return (
     <TooltipProvider delay={200}>
@@ -125,6 +160,7 @@ function ProductPricingScreen({
               scenario={scenario}
               visibility={visibility}
               onChange={update}
+              onOpenPlanner={() => setPlannerOpen(true)}
             />
             {scenario && <Waterfall scenario={scenario} />}
             {scenario && (
@@ -132,6 +168,14 @@ function ProductPricingScreen({
             )}
           </div>
         </main>
+
+        {plannerOpen && (
+          <PromotionPlannerDialog
+            assumptions={assumptions}
+            onApply={update}
+            onClose={closePlanner}
+          />
+        )}
       </div>
     </TooltipProvider>
   );

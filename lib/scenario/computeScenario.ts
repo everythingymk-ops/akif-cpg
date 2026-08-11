@@ -5,7 +5,10 @@ import {
   computeBreakEven,
   computeContribution,
   computePriceGap,
+  computeTradeSpendActualUnits,
+  computeTradeSpendNormalized,
   dec,
+  findTradeSpendBand,
   impliedBrandInvoiceAtShelf,
   priceManufacturerSale,
   priceRetailerShelf,
@@ -18,10 +21,14 @@ import {
   type CalculationTrace,
   type ContributionResult,
   type CostLine,
+  type DecimalInput,
   type DistributorAssumptions,
   type LandedCostResult,
   type ManufacturerPricingResult,
   type PriceGapResult,
+  type Promotion,
+  type TradeSpendBand,
+  type TradeSpendResult,
   type ValidationWarning,
 } from "@/lib/pricing-engine";
 import type { ScenarioAssumptions } from "./assumptions";
@@ -44,10 +51,24 @@ export interface WaterfallStage {
   trace?: CalculationTrace;
 }
 
+export interface ScenarioOptions {
+  /** Editable trade-spend planning bands (PRD §24, §55); defaults apply if omitted. */
+  tradeSpendBands?: readonly TradeSpendBand[];
+}
+
 export interface ComputedScenario {
   manufacturer: ManufacturerPricingResult;
   landed: LandedCostResult;
-  tradeSpend: { promotionalRate: Decimal; reserveRate: Decimal; totalRate: Decimal };
+  tradeSpend: {
+    mode: "manual" | "calendar";
+    promotionalRate: Decimal;
+    reserveRate: Decimal;
+    totalRate: Decimal;
+    /** Present in calendar mode (PRD §16 Mode B). */
+    plan?: TradeSpendResult;
+    /** Planning band the total rate falls into (PRD §24). */
+    band?: TradeSpendBand;
+  };
   requiredInvoicePerUnit: Decimal;
   requiredSrpPerUnit: Decimal;
   requiredSrpTrace: CalculationTrace;
@@ -73,9 +94,12 @@ function optional(value: string): string | undefined {
   return value.trim() === "" ? undefined : value.trim();
 }
 
-export function computeScenario(assumptions: ScenarioAssumptions): ScenarioComputation {
+export function computeScenario(
+  assumptions: ScenarioAssumptions,
+  options?: ScenarioOptions,
+): ScenarioComputation {
   try {
-    return { ok: true, scenario: compute(assumptions) };
+    return { ok: true, scenario: compute(assumptions, options) };
   } catch (error) {
     if (error instanceof PricingEngineError) {
       return { ok: false, error: error.message };
@@ -84,7 +108,67 @@ export function computeScenario(assumptions: ScenarioAssumptions): ScenarioCompu
   }
 }
 
-function compute(a: ScenarioAssumptions): ComputedScenario {
+/** Trim empty-string optionals off a promotion draft before the engine sees it. */
+function sanitizePromotion(promotion: Promotion): Promotion {
+  const clean = (value: DecimalInput | undefined): DecimalInput | undefined =>
+    value === undefined || String(value).trim() === "" ? undefined : value;
+  return {
+    ...promotion,
+    events: clean(promotion.events),
+    retailerFundingRate: clean(promotion.retailerFundingRate),
+    distributorFundingRate: clean(promotion.distributorFundingRate),
+    fixedEventFee: clean(promotion.fixedEventFee),
+    additionalCost: clean(promotion.additionalCost),
+    estimatedUnits: clean(promotion.estimatedUnits),
+    startDate: promotion.startDate?.trim() ? promotion.startDate : undefined,
+    endDate: promotion.endDate?.trim() ? promotion.endDate : undefined,
+  };
+}
+
+/** True when a value is present and non-zero (or unparseable — the engine reports those). */
+function requiresActualUnits(value: DecimalInput | undefined): boolean {
+  if (value === undefined || String(value).trim() === "") return false;
+  try {
+    return dec(value).greaterThan(0);
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * Calendar-mode trade spend (PRD §16 Mode B, §21): shared by the pricing
+ * screen and the Promotion Planner so a draft previews exactly what applying
+ * it will compute. Throws PricingEngineError with an actionable message when
+ * fixed fees are present without the actual-units context.
+ */
+export function computePlannedTradeSpend(input: {
+  promotions: Promotion[];
+  annualWeeks: string;
+  additionalReserveRate: string;
+  normalWeeklyUnits: string;
+  plannerInvoiceReferencePerUnit: string;
+}): TradeSpendResult {
+  const promotions = input.promotions.map(sanitizePromotion);
+  const planInput = {
+    annualWeeks: input.annualWeeks.trim() === "" ? "52" : input.annualWeeks,
+    promotions,
+    additionalReserveRate: input.additionalReserveRate || "0",
+  };
+  const needsActualUnits = promotions.some(
+    (promotion) =>
+      requiresActualUnits(promotion.fixedEventFee) ||
+      requiresActualUnits(promotion.additionalCost) ||
+      requiresActualUnits(promotion.estimatedUnits),
+  );
+  return needsActualUnits
+    ? computeTradeSpendActualUnits(planInput, {
+        normalWeeklyUnits: input.normalWeeklyUnits,
+        brandInvoicePricePerUnit: input.plannerInvoiceReferencePerUnit,
+      })
+    : computeTradeSpendNormalized(planInput);
+}
+
+function compute(a: ScenarioAssumptions, options?: ScenarioOptions): ComputedScenario {
   // 1. Manufacturer economics (PRD §8).
   const manufacturer = priceManufacturerSale({
     cogsPerUnit: a.cogsPerUnit,
@@ -103,10 +187,28 @@ function compute(a: ScenarioAssumptions): ComputedScenario {
     context: { customsValuePerUnit: manufacturer.sellPricePerUnit },
   });
 
-  // 3. Trade spend stack (PRD §23): manual promotional rate + reserve.
-  const promotionalRate = dec(a.tradeSpendRate, "tradeSpendRate");
+  // 3. Trade spend (PRD §16): Mode A manual rate + reserve (§23), or Mode B —
+  //    the promotional calendar priced by the trade spend engine (§21).
   const reserveRate = dec(a.additionalReserveRate || "0", "additionalReserveRate");
-  const totalTradeRate = promotionalRate.plus(reserveRate);
+  const promotions = a.promotions.map(sanitizePromotion);
+  let tradeSpendPlan: TradeSpendResult | undefined;
+  let promotionalRate: Decimal;
+  let totalTradeRate: Decimal;
+  if (a.tradeSpendMode === "calendar") {
+    tradeSpendPlan = computePlannedTradeSpend({
+      promotions: a.promotions,
+      annualWeeks: a.annualWeeks,
+      additionalReserveRate: a.additionalReserveRate,
+      normalWeeklyUnits: a.normalWeeklyUnits,
+      plannerInvoiceReferencePerUnit: a.plannerInvoiceReferencePerUnit,
+    });
+    promotionalRate = tradeSpendPlan.promotionalTradeRate;
+    totalTradeRate = tradeSpendPlan.totalTradeRate;
+  } else {
+    promotionalRate = dec(a.tradeSpendRate, "tradeSpendRate");
+    totalTradeRate = promotionalRate.plus(reserveRate);
+  }
+  const tradeSpendBand = findTradeSpendBand(totalTradeRate, options?.tradeSpendBands);
 
   const revenueDeductions: CostLine[] = [
     { name: "Deductions", amount: a.deductionsRate, basis: "percentOfInvoice", owner: "brand" },
@@ -255,23 +357,37 @@ function compute(a: ScenarioAssumptions): ComputedScenario {
   });
 
   // 8. Advisor insights (PRD §38–40) and validation warnings (PRD §71).
-  const insights = runAdvisor({
-    landedCostPerUnit: landed.landedCostPerUnit,
-    targetContributionRate: a.targetContributionRate,
-    tradeSpendRate: totalTradeRate,
-    revenueDeductions,
-    variableCosts,
-    distributor,
-    retailerMarginSpec,
-    currentSrpPerUnit: currentSrp,
-    targetSrpPerUnit: optional(a.targetSrpPerUnit),
-  });
+  const insights = runAdvisor(
+    {
+      landedCostPerUnit: landed.landedCostPerUnit,
+      targetContributionRate: a.targetContributionRate,
+      tradeSpendRate: totalTradeRate,
+      revenueDeductions,
+      variableCosts,
+      distributor,
+      retailerMarginSpec,
+      currentSrpPerUnit: currentSrp,
+      targetSrpPerUnit: optional(a.targetSrpPerUnit),
+      tradeSpendPlan,
+    },
+    { tradeSpendBands: options?.tradeSpendBands },
+  );
+  // Annual volume for validation, derived from the weekly forecast (PRD §50).
+  const annualUnits =
+    a.normalWeeklyUnits.trim() === ""
+      ? undefined
+      : dec(a.normalWeeklyUnits, "normalWeeklyUnits").times(
+          dec(a.annualWeeks.trim() === "" ? "52" : a.annualWeeks, "annualWeeks"),
+        );
   const warnings = validateModel({
     retailerMarginSpec,
     distributorSelected: a.useDistributor,
     distributorMarginSpec: distributor?.marginSpec,
     tradeSpendRate: totalTradeRate,
     costLines: [...landedCostLines, ...(distributor?.fees ?? []), ...revenueDeductions, ...variableCosts],
+    promotions,
+    annualWeeks: a.annualWeeks.trim() === "" ? "52" : a.annualWeeks,
+    annualUnits,
     contributionPerUnit: atCurrentSrp?.contribution.contributionPerUnit,
     targetSrpPerUnit: optional(a.targetSrpPerUnit),
     breakEvenSrpPerUnit,
@@ -284,7 +400,14 @@ function compute(a: ScenarioAssumptions): ComputedScenario {
   return {
     manufacturer,
     landed,
-    tradeSpend: { promotionalRate, reserveRate, totalRate: totalTradeRate },
+    tradeSpend: {
+      mode: a.tradeSpendMode,
+      promotionalRate,
+      reserveRate,
+      totalRate: totalTradeRate,
+      plan: tradeSpendPlan,
+      band: tradeSpendBand,
+    },
     requiredInvoicePerUnit: required.requiredInvoicePerUnit,
     requiredSrpPerUnit: required.requiredSrpPerUnit,
     requiredSrpTrace: required.trace,
