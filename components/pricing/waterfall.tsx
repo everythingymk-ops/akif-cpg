@@ -4,6 +4,7 @@ import type { ComputedScenario } from "@/lib/scenario/computeScenario";
 import { formatMoney, formatPercent } from "@/lib/scenario/format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
 import { TraceButton } from "./trace-dialog";
 
 /**
@@ -21,29 +22,33 @@ export function Waterfall({ scenario }: { scenario: ComputedScenario }) {
       </CardHeader>
       <CardContent className="space-y-4 px-4">
         <ol className="space-y-3">
-          {scenario.waterfall.map((stage) => {
+          {scenario.waterfall.map((stage, index) => {
+            const isFinal = index === scenario.waterfall.length - 1;
             const widthPercent = maxValue.isZero()
               ? 0
               : Math.min(100, Number(stage.value.dividedBy(maxValue).times(100).toFixed(2)));
             return (
               <li key={stage.id}>
                 <div className="flex items-baseline justify-between gap-2 text-sm">
-                  <span className="flex items-center gap-1.5">
+                  <span className={cn("flex items-center gap-1.5", isFinal && "font-semibold")}>
                     {stage.label}
                     {stage.trace && <TraceButton trace={stage.trace} />}
                   </span>
-                  <span className="font-mono font-medium tabular-nums">
+                  <span className={cn("font-mono font-medium tabular-nums", isFinal && "font-semibold")}>
                     {formatMoney(stage.value)}
                   </span>
                 </div>
                 {stage.delta && (
-                  <div className="text-xs text-muted-foreground">
-                    +{formatMoney(stage.delta).replace("$", "$")} vs previous stage
+                  <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <span className="inline-flex rounded bg-muted px-1.5 font-mono text-[11px] tabular-nums">
+                      +{formatMoney(stage.delta)}
+                    </span>
+                    vs previous stage
                   </div>
                 )}
-                <div className="mt-1 h-2.5 rounded-full bg-muted">
+                <div className="mt-1 h-2 rounded-full bg-muted">
                   <div
-                    className="h-full rounded-full bg-primary/80"
+                    className={cn("h-full rounded-full", isFinal ? "bg-primary" : "bg-primary/75")}
                     style={{ width: `${widthPercent}%` }}
                     aria-hidden
                   />

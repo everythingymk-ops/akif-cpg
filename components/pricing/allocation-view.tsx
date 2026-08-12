@@ -4,23 +4,29 @@ import type { AllocationSlice } from "@/lib/scenario/computeScenario";
 import type Decimal from "decimal.js";
 import { formatMoney, formatPercent } from "@/lib/scenario/format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 /**
  * Dollar allocation view (PRD §43): for the current shelf price, where does
  * the consumer's money go? All numbers come from the active scenario.
+ *
+ * Color encodes the semantic group, not the slice (validated in step 12):
+ * chart-1 green = brand contribution ("the answer"), chart-2 blue = retailer,
+ * chart-4 plum = distributor, chart-3 amber = trade-spend family, chart-5
+ * terracotta = brand variable costs, chart-6 neutral = goods-cost family —
+ * per-slice identity is carried by the ordered, labeled legend below.
  */
-
 const SLICE_COLORS: Record<string, string> = {
-  retailer: "bg-sky-500",
-  distributor: "bg-cyan-500",
-  "trade-spend": "bg-violet-500",
-  deductions: "bg-fuchsia-500",
-  "variable-costs": "bg-rose-400",
-  logistics: "bg-amber-500",
-  manufacturing: "bg-stone-500",
-  "manufacturer-profit": "bg-stone-400",
-  contribution: "bg-emerald-500",
+  retailer: "bg-chart-2",
+  distributor: "bg-chart-4",
+  "trade-spend": "bg-chart-3",
+  deductions: "bg-chart-3/70",
+  "variable-costs": "bg-chart-5",
+  logistics: "bg-chart-6/75",
+  manufacturing: "bg-chart-6",
+  "manufacturer-profit": "bg-chart-6/55",
+  contribution: "bg-chart-1",
 };
 
 export function AllocationView({
@@ -39,38 +45,48 @@ export function AllocationView({
       </CardHeader>
       <CardContent className="space-y-4 px-4">
         <div
-          className="flex h-6 w-full overflow-hidden rounded-md"
+          className="flex h-6 w-full gap-px overflow-hidden rounded-md"
           role="img"
           aria-label="Allocation of the consumer dollar"
         >
           {allocation
             .filter((slice) => slice.amount.greaterThan(0))
             .map((slice) => (
-              <div
-                key={slice.id}
-                className={cn("h-full", SLICE_COLORS[slice.id] ?? "bg-muted-foreground")}
-                style={{ width: `${Math.max(0.5, Number(slice.share.times(100).toFixed(2)))}%` }}
-                title={`${slice.label}: ${formatMoney(slice.amount)}`}
-              />
+              <Tooltip key={slice.id}>
+                <TooltipTrigger
+                  render={
+                    <div
+                      className={cn("h-full", SLICE_COLORS[slice.id] ?? "bg-muted-foreground")}
+                      style={{ width: `${Math.max(0.5, Number(slice.share.times(100).toFixed(2)))}%` }}
+                    />
+                  }
+                />
+                <TooltipContent className="text-xs">
+                  {slice.label}: {formatMoney(slice.amount)} · {formatPercent(slice.share)}
+                </TooltipContent>
+              </Tooltip>
             ))}
         </div>
 
         <ul className="space-y-1.5">
           {allocation.map((slice) => (
-            <li key={slice.id} className="flex items-center gap-2.5 text-sm">
+            <li
+              key={slice.id}
+              className={cn(
+                "flex items-center gap-2.5 text-sm",
+                slice.id === "contribution" && "font-medium",
+              )}
+            >
               <span
                 className={cn(
-                  "size-2.5 shrink-0 rounded-sm",
+                  "size-2.5 shrink-0 rounded-[3px]",
                   SLICE_COLORS[slice.id] ?? "bg-muted-foreground",
                 )}
                 aria-hidden
               />
               <span className="flex-1">{slice.label}</span>
               <span
-                className={cn(
-                  "font-mono tabular-nums",
-                  slice.amount.lessThan(0) && "text-red-600 dark:text-red-400",
-                )}
+                className={cn("font-mono tabular-nums", slice.amount.lessThan(0) && "text-negative")}
               >
                 {formatMoney(slice.amount)}
               </span>

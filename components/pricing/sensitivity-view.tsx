@@ -37,7 +37,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { EDITABLE_CLASSES } from "./inputs";
+import { ChartTooltipContent } from "./chart-tooltip";
+import { EDITABLE_CLASSES, ModeButton } from "./inputs";
 
 /**
  * Sensitivity analysis (PRD §33–36): one-variable tables with a chart, and
@@ -128,20 +129,9 @@ export function SensitivityView({ base }: { base: SensitivityBaseScenario }) {
         <CardContent className="space-y-3 px-4">
           <div className="flex flex-wrap items-end gap-2">
             {availableVariables.map((key) => (
-              <button
-                key={key}
-                type="button"
-                aria-pressed={variable === key}
-                onClick={() => setVariable(key)}
-                className={cn(
-                  "rounded-md border px-2.5 py-1 text-xs transition-colors",
-                  variable === key
-                    ? "border-blue-400 bg-blue-50/60 font-semibold text-blue-900 dark:border-blue-700 dark:bg-blue-950/40 dark:text-blue-200"
-                    : "border-border text-muted-foreground hover:bg-accent/50",
-                )}
-              >
+              <ModeButton key={key} selected={variable === key} onClick={() => setVariable(key)}>
                 {VARIABLE_META[key].label}
-              </button>
+              </ModeButton>
             ))}
             <label className="ml-auto flex min-w-56 flex-1 flex-col gap-1 sm:max-w-xs">
               <span className="text-[11px] text-muted-foreground">
@@ -161,33 +151,52 @@ export function SensitivityView({ base }: { base: SensitivityBaseScenario }) {
             <div className="h-56 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                  <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                  <XAxis
+                    dataKey="label"
+                    tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                    axisLine={{ stroke: "var(--border)" }}
+                    tickLine={{ stroke: "var(--border)" }}
+                  />
                   <YAxis
                     yAxisId="srp"
-                    tick={{ fontSize: 11 }}
+                    tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                    axisLine={{ stroke: "var(--border)" }}
+                    tickLine={{ stroke: "var(--border)" }}
                     tickFormatter={(value: number) => `$${value.toFixed(2)}`}
                     width={56}
                   />
                   <YAxis
                     yAxisId="cm"
                     orientation="right"
-                    tick={{ fontSize: 11 }}
+                    tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                    axisLine={{ stroke: "var(--border)" }}
+                    tickLine={{ stroke: "var(--border)" }}
                     tickFormatter={(value: number) => `${value}%`}
                     width={44}
                   />
                   <ChartTooltip
-                    formatter={(value, name) =>
-                      name === "Required SRP" ? `$${Number(value).toFixed(2)}` : `${String(value)}%`
+                    content={
+                      <ChartTooltipContent
+                        formatter={(value, dataKey) =>
+                          dataKey === "requiredSrp"
+                            ? `$${Number(value).toFixed(2)}`
+                            : `${String(value)}%`
+                        }
+                      />
                     }
                   />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <Legend
+                    wrapperStyle={{ fontSize: 12, color: "var(--muted-foreground)" }}
+                    iconType="plainline"
+                    iconSize={12}
+                  />
                   <Line
                     yAxisId="srp"
                     type="monotone"
                     dataKey="requiredSrp"
                     name="Required SRP"
-                    stroke="#2563eb"
+                    stroke="var(--color-chart-2)"
                     strokeWidth={2}
                     dot={{ r: 2.5 }}
                   />
@@ -197,7 +206,7 @@ export function SensitivityView({ base }: { base: SensitivityBaseScenario }) {
                       type="monotone"
                       dataKey="contributionMargin"
                       name="CM @ current SRP"
-                      stroke="#059669"
+                      stroke="var(--color-chart-1)"
                       strokeWidth={2}
                       dot={{ r: 2.5 }}
                     />
@@ -246,7 +255,7 @@ export function SensitivityView({ base }: { base: SensitivityBaseScenario }) {
                               <td
                                 className={cn(
                                   "py-1.5 pr-2 text-right font-mono tabular-nums",
-                                  cmToneClass(row.contributionMarginAtCurrentSrp, targetRate),
+                                  cmTone(row.contributionMarginAtCurrentSrp, targetRate).text,
                                 )}
                               >
                                 {row.contributionMarginAtCurrentSrp
@@ -334,12 +343,17 @@ export function SensitivityView({ base }: { base: SensitivityBaseScenario }) {
                         <td
                           key={columnIndex}
                           className={cn(
-                            "py-1.5 pl-2 text-right font-mono tabular-nums",
-                            cell.infeasible && "text-muted-foreground",
+                            "px-2 py-1.5 text-right font-mono tabular-nums",
+                            cell.infeasible && "bg-muted/40 text-muted-foreground",
                             metric === "contributionMarginAtCurrentSrp" &&
-                              cmToneClass(cell.value, targetRate),
+                              !cell.infeasible &&
+                              cn(
+                                cmTone(cell.value, targetRate).text,
+                                cmTone(cell.value, targetRate).bg,
+                              ),
                           )}
                           title={cell.infeasible}
+                          aria-label={cell.infeasible}
                         >
                           {cell.infeasible
                             ? "—"
@@ -364,14 +378,15 @@ export function SensitivityView({ base }: { base: SensitivityBaseScenario }) {
   );
 }
 
-function cmToneClass(
+/** CM tone vs the contribution target: text tint + soft heatmap fill. */
+function cmTone(
   value: import("decimal.js").default | undefined,
   target: import("decimal.js").default | null,
-): string {
-  if (!value) return "";
-  if (value.lessThan(0)) return "text-red-600 dark:text-red-400";
-  if (target && value.lessThan(target)) return "text-amber-600 dark:text-amber-400";
-  return "text-emerald-600 dark:text-emerald-400";
+): { text: string; bg: string } {
+  if (!value) return { text: "", bg: "" };
+  if (value.lessThan(0)) return { text: "text-negative", bg: "bg-negative-soft" };
+  if (target && value.lessThan(target)) return { text: "text-warning", bg: "bg-warning-soft" };
+  return { text: "text-positive", bg: "bg-positive-soft" };
 }
 
 function MatrixSelect({
