@@ -14,9 +14,11 @@ import {
 } from "@/lib/scenario/format";
 import { portfolioStatus, type PortfolioStatus } from "@/lib/scenario/portfolio";
 import { assumptionsForProduct, type ProductSetup } from "@/lib/scenario/product";
+import { AppHeader } from "@/components/app-header";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { portfolioTone, statusBadge, statusDot } from "@/components/ui/status";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useBenchmarks } from "@/components/benchmarks/benchmark-provider";
@@ -29,11 +31,11 @@ import { useProducts } from "@/components/setup/product-provider";
  * with the configurable green/yellow/red commercial-health thresholds.
  */
 
-const STATUS_STYLES: Record<PortfolioStatus | "unknown", { dot: string; label: string }> = {
-  green: { dot: "bg-emerald-500", label: "Healthy" },
-  yellow: { dot: "bg-amber-500", label: "Review" },
-  red: { dot: "bg-red-500", label: "Below threshold" },
-  unknown: { dot: "bg-muted-foreground/40", label: "No shelf price" },
+const STATUS_LABELS: Record<PortfolioStatus | "unknown", string> = {
+  green: "Healthy",
+  yellow: "Review",
+  red: "Below threshold",
+  unknown: "No shelf price",
 };
 
 interface PortfolioRow {
@@ -92,16 +94,12 @@ export function PortfolioScreen() {
   return (
     <TooltipProvider delay={200}>
       <div className="flex min-h-dvh flex-col bg-background">
-        <header className="flex flex-wrap items-center gap-2 border-b bg-card px-4 py-2.5">
-          <div className="mr-2 flex items-baseline gap-2">
-            <span className="text-sm font-semibold">Akif CPG</span>
-            <span className="text-xs text-muted-foreground">Portfolio</span>
-          </div>
+        <AppHeader subtitle="Portfolio">
           <Link
             href="/"
-            className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-8 gap-1 text-xs")}
+            className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-8 gap-1.5 text-xs")}
           >
-            <ArrowLeft className="size-3" aria-hidden /> Back to pricing
+            <ArrowLeft aria-hidden /> Back to pricing
           </Link>
           <div className="ml-auto flex flex-wrap items-end gap-3 text-xs">
             <label className="flex items-center gap-1.5 text-muted-foreground">
@@ -133,7 +131,7 @@ export function PortfolioScreen() {
               />
             </label>
           </div>
-        </header>
+        </AppHeader>
 
         <main className="flex-1 p-3 lg:p-4">
           <Card className="gap-3 py-4">
@@ -146,7 +144,7 @@ export function PortfolioScreen() {
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
                   <thead>
-                    <tr className="border-b text-left text-muted-foreground">
+                    <tr className="border-b text-left text-[11px] uppercase tracking-wide text-muted-foreground">
                       <th className="py-1.5 pr-2 font-medium">SKU</th>
                       <th className="py-1.5 pr-2 font-medium">Product</th>
                       <th className="py-1.5 pr-2 font-medium">Scenario</th>
@@ -166,11 +164,11 @@ export function PortfolioScreen() {
                   <tbody>
                     {rows.map((row) => {
                       const c = row.computed;
-                      const style = STATUS_STYLES[row.status];
+                      const tone = portfolioTone[row.status];
                       return (
                         <tr
                           key={row.product.id}
-                          className="cursor-pointer border-b border-border/50 transition-colors hover:bg-accent/40"
+                          className="cursor-pointer border-b border-border/50 transition-colors hover:bg-muted/60"
                           onClick={() => openProduct(row.product.id)}
                         >
                           <td className="py-2 pr-2 font-mono">{row.product.basics.sku}</td>
@@ -228,9 +226,14 @@ export function PortfolioScreen() {
                             </td>
                           )}
                           <td className="py-2">
-                            <span className="flex items-center gap-1.5 whitespace-nowrap">
-                              <span className={cn("size-2.5 rounded-full", style.dot)} aria-hidden />
-                              {style.label}
+                            <span
+                              className={cn(
+                                "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] whitespace-nowrap",
+                                statusBadge[tone],
+                              )}
+                            >
+                              <span className={cn("size-1.5 rounded-full", statusDot[tone])} aria-hidden />
+                              {STATUS_LABELS[row.status]}
                             </span>
                           </td>
                         </tr>

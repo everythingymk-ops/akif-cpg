@@ -1,33 +1,27 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, RotateCcw } from "lucide-react";
+import { CheckCircle2, RotateCcw, Sparkles, TriangleAlert } from "lucide-react";
 import type { AdvisorInsight, ValidationWarning } from "@/lib/pricing-engine";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Separator } from "@/components/ui/separator";
+import { advisorTone, statusBadge, statusBox } from "@/components/ui/status";
 import { cn } from "@/lib/utils";
 
-const PRIORITY_STYLES: Record<
-  AdvisorInsight["priority"],
-  { badge: string; border: string; label: string }
-> = {
-  critical: {
-    badge: "bg-red-600 text-white dark:bg-red-500",
-    border: "border-red-300 dark:border-red-900",
-    label: "Critical",
-  },
-  warning: {
-    badge: "bg-amber-500 text-white",
-    border: "border-amber-300 dark:border-amber-900",
-    label: "Warning",
-  },
-  opportunity: {
-    badge: "bg-emerald-600 text-white dark:bg-emerald-500",
-    border: "border-emerald-300 dark:border-emerald-900",
-    label: "Opportunity",
-  },
+const PRIORITY_LABELS: Record<AdvisorInsight["priority"], string> = {
+  critical: "Critical",
+  warning: "Warning",
+  opportunity: "Opportunity",
+};
+
+/** Left accent per tone — the card frame itself stays neutral. */
+const ACCENT_CLASSES: Record<AdvisorInsight["priority"], string> = {
+  critical: "border-l-negative",
+  warning: "border-l-warning",
+  opportunity: "border-l-positive",
 };
 
 /**
@@ -66,30 +60,43 @@ export function AdvisorPanel({
             className="h-7 gap-1 text-xs"
             onClick={() => setIgnored(new Set())}
           >
-            <RotateCcw className="size-3" aria-hidden /> Restore {ignoredCount}
+            <RotateCcw aria-hidden /> Restore {ignoredCount}
           </Button>
         )}
       </CardHeader>
       <CardContent className="space-y-3 px-4">
         {visible.length === 0 ? (
-          <p className="flex items-center gap-2 text-sm text-muted-foreground">
-            <CheckCircle2 className="size-4 text-emerald-500" aria-hidden />
-            {insights.length === 0
-              ? "No insights for the current model."
-              : "All insights ignored for this session."}
-          </p>
+          <EmptyState
+            icon={insights.length === 0 ? Sparkles : CheckCircle2}
+            title={
+              insights.length === 0
+                ? "No insights for the current model."
+                : "All insights ignored for this session."
+            }
+            hint={
+              insights.length === 0
+                ? "Insights appear as the model surfaces risks and levers worth a look."
+                : undefined
+            }
+            className="py-6"
+          />
         ) : (
           <ul className="space-y-3">
             {visible.map((insight) => {
-              const style = PRIORITY_STYLES[insight.priority];
+              const tone = advisorTone[insight.priority];
               const isExplained = explained.has(insight.code);
               return (
                 <li
                   key={insight.code}
-                  className={cn("rounded-lg border px-3 py-2.5", style.border)}
+                  className={cn(
+                    "rounded-lg border border-l-2 px-3 py-2.5",
+                    ACCENT_CLASSES[insight.priority],
+                  )}
                 >
                   <div className="mb-1.5 flex items-center justify-between gap-2">
-                    <Badge className={cn("text-[11px]", style.badge)}>{style.label}</Badge>
+                    <Badge variant="outline" className={cn("text-[11px]", statusBadge[tone])}>
+                      {PRIORITY_LABELS[insight.priority]}
+                    </Badge>
                     <div className="flex gap-1">
                       <Button
                         variant="ghost"
@@ -136,7 +143,7 @@ export function AdvisorPanel({
           </h3>
           {warnings.length === 0 ? (
             <p className="flex items-center gap-2 text-sm text-muted-foreground">
-              <CheckCircle2 className="size-4 text-emerald-500" aria-hidden />
+              <CheckCircle2 className="size-4 text-positive" aria-hidden />
               No validation warnings.
             </p>
           ) : (
@@ -144,8 +151,12 @@ export function AdvisorPanel({
               {warnings.map((warning) => (
                 <li
                   key={`${warning.code}-${warning.message}`}
-                  className="rounded border border-amber-300 bg-amber-50/60 px-2.5 py-1.5 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
+                  className={cn(
+                    "flex items-start gap-1.5 rounded border px-2.5 py-1.5 text-xs text-foreground/90",
+                    statusBox.warning,
+                  )}
                 >
+                  <TriangleAlert className="mt-0.5 size-3.5 shrink-0 text-warning" aria-hidden />
                   {warning.message}
                 </li>
               ))}

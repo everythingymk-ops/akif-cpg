@@ -306,7 +306,7 @@ function ProductPricingScreen({ product }: { product: ProductSetup }) {
             />
             {scenario && (
               <Tabs defaultValue="waterfall" className="min-w-0">
-                <TabsList>
+                <TabsList variant="line">
                   <TabsTrigger value="waterfall">Price build</TabsTrigger>
                   <TabsTrigger value="allocation" disabled={!scenario.dollarAllocation}>
                     $ allocation

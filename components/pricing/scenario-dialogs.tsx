@@ -6,14 +6,17 @@ import { computeScenario, type ComputedScenario } from "@/lib/scenario/computeSc
 import { formatMoney, formatPercent, tryDec } from "@/lib/scenario/format";
 import type { Scenario } from "@/lib/scenario/scenarios";
 import { SCENARIO_NAME_PRESETS } from "@/lib/scenario/scenarios";
+import { History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { EDITABLE_CLASSES } from "./inputs";
@@ -59,7 +62,7 @@ export function ScenarioNameDialog({
               className={cn(
                 "rounded-full border px-2.5 py-0.5 text-xs transition-colors",
                 name === preset
-                  ? "border-blue-400 bg-blue-50/60 font-semibold text-blue-900 dark:border-blue-700 dark:bg-blue-950/40 dark:text-blue-200"
+                  ? "border-editable-border bg-editable-bg font-semibold text-editable-ink"
                   : "border-border text-muted-foreground hover:bg-accent/50",
                 takenNames.includes(preset) && "opacity-40",
               )}
@@ -76,18 +79,18 @@ export function ScenarioNameDialog({
           aria-label="Scenario name"
         />
         {taken && (
-          <p className="text-xs text-amber-600 dark:text-amber-400">
+          <p className="text-xs text-warning">
             A scenario with this name already exists for this product.
           </p>
         )}
-        <div className="flex justify-end gap-2">
+        <DialogFooter>
           <Button variant="ghost" size="sm" onClick={onClose}>
             Cancel
           </Button>
           <Button size="sm" disabled={trimmed === "" || taken} onClick={submit}>
             Create
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
@@ -200,7 +203,7 @@ export function CompareScenariosDialog({
           </table>
         </div>
         {columns.some((column) => column.error) && (
-          <p className="text-xs text-amber-600 dark:text-amber-400">
+          <p className="text-xs text-warning">
             {columns
               .filter((column) => column.error)
               .map((column) => `${column.scenario.name}: ${column.error}`)
@@ -230,9 +233,11 @@ export function ScenarioHistoryDialog({
           </DialogDescription>
         </DialogHeader>
         {scenario.history.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            No saved changes yet — save the scenario after editing assumptions to start the trail.
-          </p>
+          <EmptyState
+            icon={History}
+            title="No saved changes yet"
+            hint="Save the scenario after editing assumptions to start the trail."
+          />
         ) : (
           <ol className="space-y-3">
             {scenario.history.map((entry) => (

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Columns3, Contact, Download, History, LayoutGrid, Plus, RotateCcw, Save } from "lucide-react";
+import { AppHeader } from "@/components/app-header";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -11,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
@@ -39,9 +41,22 @@ export interface ProfileControls {
   onManage: () => void;
 }
 
+/** One shared recipe for every bar control so heights and gaps never drift. */
+const barBtn = "h-8 gap-1.5 text-xs";
+
+/** Compact divider between control groups; hidden once the row wraps. */
+function GroupDivider() {
+  return (
+    <Separator
+      orientation="vertical"
+      className="mx-0.5 h-4 data-vertical:self-center max-xl:hidden"
+    />
+  );
+}
+
 /**
- * Top bar (PRD §58): product switcher, scenario switcher and the §70 actions.
- * Export still waits for its roadmap step and says so.
+ * Top bar (PRD §58): product switcher, scenario switcher and the §70 actions,
+ * visually grouped: product | customer profiles | scenario … actions.
  */
 export function TopBar({
   products,
@@ -64,19 +79,14 @@ export function TopBar({
     scenario.scenarios.find((s) => s.id === scenario.activeScenarioId)?.name ?? "No scenario";
 
   return (
-    <header className="flex flex-wrap items-center gap-2 border-b bg-card px-4 py-2.5">
-      <div className="mr-2 flex items-baseline gap-2">
-        <span className="text-sm font-semibold">Akif CPG</span>
-        <span className="text-xs text-muted-foreground">Pricing Architect</span>
-      </div>
-
+    <AppHeader subtitle="Pricing Architect">
       <Select
         value={activeProductId}
         onValueChange={(value) => {
           if (value) onSelectProduct(value);
         }}
       >
-        <SelectTrigger size="sm" className="w-[210px] text-xs" aria-label="Product">
+        <SelectTrigger size="sm" className="w-[190px] text-xs" aria-label="Product">
           <SelectValue>
             {products.find((product) => product.id === activeProductId)?.name ?? "Select product"}
           </SelectValue>
@@ -90,19 +100,18 @@ export function TopBar({
         </SelectContent>
       </Select>
 
-      <Link
-        href="/setup"
-        className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-8 gap-1 text-xs")}
-      >
+      <Link href="/setup" className={cn(buttonVariants({ variant: "outline", size: "sm" }), barBtn)}>
         <Plus aria-hidden /> New product
       </Link>
 
       <Link
         href="/portfolio"
-        className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-8 gap-1 text-xs")}
+        className={cn(buttonVariants({ variant: "outline", size: "sm" }), barBtn)}
       >
         <LayoutGrid aria-hidden /> Portfolio
       </Link>
+
+      <GroupDivider />
 
       <Tooltip>
         <TooltipTrigger
@@ -114,7 +123,7 @@ export function TopBar({
                   if (value) profiles.onApplyRetailer(value);
                 }}
               >
-                <SelectTrigger size="sm" className="w-[150px] text-xs" aria-label="Retailer profile">
+                <SelectTrigger size="sm" className="w-[140px] text-xs" aria-label="Retailer profile">
                   <SelectValue>
                     {profiles.appliedRetailerId
                       ? profiles.retailers.find((r) => r.id === profiles.appliedRetailerId)?.name
@@ -148,7 +157,7 @@ export function TopBar({
           if (value) profiles.onApplyDistributor(value === "direct" ? null : value);
         }}
       >
-        <SelectTrigger size="sm" className="w-[150px] text-xs" aria-label="Distributor profile">
+        <SelectTrigger size="sm" className="w-[140px] text-xs" aria-label="Distributor profile">
           <SelectValue>
             {profiles.appliedDistributorId === null
               ? "Distributor…"
@@ -170,12 +179,7 @@ export function TopBar({
       <Tooltip>
         <TooltipTrigger
           render={
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 gap-1 text-xs"
-              onClick={profiles.onManage}
-            >
+            <Button variant="ghost" size="sm" className={barBtn} onClick={profiles.onManage}>
               <Contact aria-hidden /> Profiles
             </Button>
           }
@@ -183,19 +187,21 @@ export function TopBar({
         <TooltipContent className="text-xs">Manage retailer & distributor profiles</TooltipContent>
       </Tooltip>
 
+      <GroupDivider />
+
       <Select
         value={scenario.activeScenarioId ?? ""}
         onValueChange={(value) => {
           if (value) scenario.onSelectScenario(value);
         }}
       >
-        <SelectTrigger size="sm" className="w-[170px] text-xs" aria-label="Scenario">
+        <SelectTrigger size="sm" className="w-[160px] text-xs" aria-label="Scenario">
           <SelectValue>
             <span className="flex items-center gap-1.5">
               Scenario: {activeScenarioName}
               {scenario.dirty && (
                 <span
-                  className="size-1.5 rounded-full bg-amber-500"
+                  className="size-1.5 rounded-full bg-warning"
                   aria-label="Unsaved changes"
                   title="Unsaved changes"
                 />
@@ -220,7 +226,7 @@ export function TopBar({
         <Tooltip>
           <TooltipTrigger
             render={
-              <Button variant="outline" size="sm" className="h-8 gap-1 text-xs" onClick={onReset}>
+              <Button variant="outline" size="sm" className={barBtn} onClick={onReset}>
                 <RotateCcw aria-hidden /> Reset
               </Button>
             }
@@ -236,11 +242,10 @@ export function TopBar({
               <Button
                 variant={scenario.dirty ? "default" : "outline"}
                 size="sm"
-                className="h-8 gap-1 text-xs"
+                className={barBtn}
                 onClick={scenario.onSave}
               >
                 <Save aria-hidden /> Save
-                {scenario.dirty && <span className="size-1.5 rounded-full bg-amber-400" aria-hidden />}
               </Button>
             }
           />
@@ -249,21 +254,23 @@ export function TopBar({
           </TooltipContent>
         </Tooltip>
 
-        <Button variant="outline" size="sm" className="h-8 text-xs" onClick={scenario.onDuplicate}>
+        <Button variant="outline" size="sm" className={barBtn} onClick={scenario.onDuplicate}>
           Duplicate
         </Button>
+
+        <GroupDivider />
 
         <Button
           variant="outline"
           size="sm"
-          className="h-8 gap-1 text-xs"
+          className={barBtn}
           onClick={scenario.onCompare}
           disabled={scenario.scenarios.length < 2}
         >
           <Columns3 aria-hidden /> Compare
         </Button>
 
-        <Button variant="outline" size="sm" className="h-8 gap-1 text-xs" onClick={scenario.onHistory}>
+        <Button variant="outline" size="sm" className={barBtn} onClick={scenario.onHistory}>
           <History aria-hidden /> History
         </Button>
 
@@ -274,7 +281,7 @@ export function TopBar({
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-8 gap-1 text-xs"
+                  className={barBtn}
                   disabled={scenario.onExport === null}
                   onClick={scenario.onExport ?? undefined}
                 >
@@ -289,6 +296,6 @@ export function TopBar({
           </TooltipContent>
         </Tooltip>
       </div>
-    </header>
+    </AppHeader>
   );
 }

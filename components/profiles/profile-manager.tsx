@@ -10,6 +10,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -302,14 +303,14 @@ export function ProfileManagerDialog({ onClose }: { onClose: () => void }) {
           </TabsContent>
         </Tabs>
 
-        <div className="flex justify-end gap-2 border-t pt-3">
+        <DialogFooter>
           <Button variant="ghost" size="sm" onClick={onClose}>
             Cancel
           </Button>
           <Button size="sm" onClick={save}>
             Save profiles
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

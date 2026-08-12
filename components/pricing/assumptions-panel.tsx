@@ -20,6 +20,8 @@ import {
 } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { statusDot } from "@/components/ui/status";
+import { cn } from "@/lib/utils";
 import { BasisSelect, CalculatedValue, ModeButton, MoneyField, PercentField } from "./inputs";
 
 interface AssumptionsPanelProps {
@@ -54,19 +56,19 @@ export function AssumptionsPanel({
         <CardTitle className="text-sm">Assumptions</CardTitle>
         <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
           <span className="flex items-center gap-1">
-            <span className="size-2 rounded-full bg-blue-500" aria-hidden /> editable
+            <span className="size-2 rounded-full bg-editable" aria-hidden /> editable
           </span>
           <span className="flex items-center gap-1">
             <span className="size-2 rounded-full bg-muted-foreground/50" aria-hidden /> calculated
           </span>
           <span className="flex items-center gap-1">
-            <span className="size-2 rounded-full bg-emerald-500" aria-hidden /> healthy
+            <span className={cn("size-2 rounded-full", statusDot.positive)} aria-hidden /> healthy
           </span>
           <span className="flex items-center gap-1">
-            <span className="size-2 rounded-full bg-amber-500" aria-hidden /> review
+            <span className={cn("size-2 rounded-full", statusDot.warning)} aria-hidden /> review
           </span>
           <span className="flex items-center gap-1">
-            <span className="size-2 rounded-full bg-red-500" aria-hidden /> problem
+            <span className={cn("size-2 rounded-full", statusDot.negative)} aria-hidden /> problem
           </span>
         </div>
       </CardHeader>
@@ -242,7 +244,7 @@ export function AssumptionsPanel({
                       </p>
                     )}
                     {!nudgeDismissed && manualRate && (
-                      <div className="space-y-2 rounded-md border border-violet-300 bg-violet-50/60 px-2.5 py-2 dark:border-violet-900 dark:bg-violet-950/30">
+                      <div className="space-y-2 rounded-md border border-border bg-muted/50 px-2.5 py-2">
                         <p className="text-xs">
                           Would you like to build this {formatPercent(manualRate, 2)} from actual
                           planned promotions?

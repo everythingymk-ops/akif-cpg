@@ -22,6 +22,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { statusBox, statusText } from "@/components/ui/status";
 import { cn } from "@/lib/utils";
 import { MoneyField } from "./inputs";
 
@@ -117,9 +118,7 @@ export function ReverseView({
                 <div
                   className={cn(
                     "rounded-md border px-3 py-2 text-sm",
-                    gap.exceedsSupportedCost
-                      ? "border-red-300 dark:border-red-900"
-                      : "border-emerald-300 dark:border-emerald-900",
+                    gap.exceedsSupportedCost ? statusBox.negative : statusBox.positive,
                   )}
                 >
                   <div className="mb-1 flex items-center justify-between gap-2">
@@ -127,9 +126,7 @@ export function ReverseView({
                     <span
                       className={cn(
                         "font-mono tabular-nums",
-                        gap.exceedsSupportedCost
-                          ? "text-red-600 dark:text-red-400"
-                          : "text-emerald-600 dark:text-emerald-400",
+                        statusText[gap.exceedsSupportedCost ? "negative" : "positive"],
                       )}
                     >
                       {gap.gapPerUnit.isNegative() ? "" : "+"}

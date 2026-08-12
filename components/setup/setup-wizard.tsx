@@ -169,13 +169,11 @@ function ChoiceButton({
       onClick={onClick}
       className={cn(
         "rounded-lg border px-3 py-2 text-left text-sm transition-colors",
-        selected
-          ? "border-blue-400 bg-blue-50/60 dark:border-blue-700 dark:bg-blue-950/40"
-          : "border-border hover:bg-accent/50",
+        selected ? "border-editable-border bg-editable-bg" : "border-border hover:bg-accent/50",
       )}
     >
       <div className="flex items-center gap-2 font-medium">
-        {selected && <Check className="size-3.5 shrink-0 text-blue-600 dark:text-blue-400" aria-hidden />}
+        {selected && <Check className="size-3.5 shrink-0 text-editable" aria-hidden />}
         <span>{title}</span>
         {badge && (
           <Badge variant="outline" className="ml-auto text-[11px] text-muted-foreground">
@@ -334,7 +332,8 @@ export function SetupWizard() {
   };
 
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-3xl flex-col gap-4 p-4 lg:p-6">
+    <div className="min-h-dvh bg-background">
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 p-4 lg:p-6">
       <header className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-lg font-semibold">Add product</h1>
@@ -353,14 +352,15 @@ export function SetupWizard() {
             key={label}
             aria-current={index === step ? "step" : undefined}
             className={cn(
-              "rounded-full border px-3 py-1 text-xs",
+              "inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs",
               index === step
-                ? "border-blue-400 bg-blue-50/60 font-semibold text-blue-900 dark:border-blue-700 dark:bg-blue-950/40 dark:text-blue-200"
+                ? "border-primary/40 bg-primary/10 font-semibold text-primary"
                 : index < step
-                  ? "border-transparent bg-muted text-muted-foreground line-through"
+                  ? "border-transparent bg-muted text-muted-foreground"
                   : "border-border text-muted-foreground",
             )}
           >
+            {index < step && <Check className="size-3 text-positive" aria-hidden />}
             {index + 1}. {label}
           </li>
         ))}
@@ -666,7 +666,7 @@ export function SetupWizard() {
                     </dd>
                   </dl>
                 ) : (
-                  <p className="text-xs text-amber-600 dark:text-amber-400">
+                  <p className="text-xs text-warning">
                     {detailedCogs.error ?? "Component amounts are incomplete."}
                   </p>
                 )}
@@ -731,6 +731,7 @@ export function SetupWizard() {
           </CardContent>
         </Card>
       )}
+      </div>
     </div>
   );
 }
@@ -775,9 +776,9 @@ function TextField({
         id={`basics-${name}`}
         {...form.register(name)}
         aria-invalid={error ? true : undefined}
-        className={cn(EDITABLE_CLASSES, "text-sm", error && "border-red-400")}
+        className={cn(EDITABLE_CLASSES, "text-sm")}
       />
-      {error && <p className="text-xs text-red-600 dark:text-red-400">{error}</p>}
+      {error && <p className="text-xs text-negative">{error}</p>}
     </div>
   );
 }

@@ -9,6 +9,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -137,7 +138,7 @@ export function BandEditorDialog({ onClose }: { onClose: () => void }) {
           ))}
         </div>
 
-        <div className="flex items-center justify-between gap-2 border-t pt-3">
+        <DialogFooter className="sm:justify-between">
           <div className="flex gap-2">
             <Button
               variant="outline"
@@ -171,7 +172,7 @@ export function BandEditorDialog({ onClose }: { onClose: () => void }) {
           <Button size="sm" onClick={save}>
             Save bands
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

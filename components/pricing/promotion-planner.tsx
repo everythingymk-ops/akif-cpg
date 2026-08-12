@@ -25,10 +25,12 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { statusBadge } from "@/components/ui/status";
 import {
   Select,
   SelectContent,
@@ -483,7 +485,9 @@ export function PromotionPlannerDialog({
                   <Badge
                     className={cn(
                       "mr-1.5 align-middle text-[11px]",
-                      band.advisorPriority === "warning" ? "bg-amber-500 text-white" : "bg-muted text-foreground",
+                      band.advisorPriority === "warning"
+                        ? statusBadge.warning
+                        : "bg-muted text-foreground",
                     )}
                   >
                     {band.label}
@@ -518,7 +522,7 @@ export function PromotionPlannerDialog({
           </div>
         ) : null}
 
-        <div className="flex items-center justify-between gap-3 border-t pt-3">
+        <DialogFooter className="sm:justify-between">
           <div className="flex items-center gap-1.5">
             <Button variant="ghost" size="sm" onClick={onClose}>
               Cancel
@@ -529,13 +533,13 @@ export function PromotionPlannerDialog({
               className="h-8 gap-1 text-xs text-muted-foreground"
               onClick={() => setBandsOpen(true)}
             >
-              <Pencil className="size-3" aria-hidden /> Edit planning bands
+              <Pencil aria-hidden /> Edit planning bands
             </Button>
           </div>
           <Button size="sm" disabled={preview.plan === null} onClick={apply}>
             Apply to model
           </Button>
-        </div>
+        </DialogFooter>
 
         {bandsOpen && <BandEditorDialog onClose={() => setBandsOpen(false)} />}
       </DialogContent>

@@ -1,5 +1,6 @@
 "use client";
 
+import { ArrowDown, ArrowUp } from "lucide-react";
 import type { CalculationTrace } from "@/lib/pricing-engine";
 import type { ScenarioAssumptions } from "@/lib/scenario/assumptions";
 import type { ComputedScenario } from "@/lib/scenario/computeScenario";
@@ -10,17 +11,9 @@ import {
   tryDec,
 } from "@/lib/scenario/format";
 import { Card, CardContent } from "@/components/ui/card";
+import { statusText, type StatusTone } from "@/components/ui/status";
 import { cn } from "@/lib/utils";
 import { TraceButton } from "./trace-dialog";
-
-type Status = "healthy" | "review" | "problem" | "neutral";
-
-const STATUS_CLASSES: Record<Status, string> = {
-  healthy: "text-emerald-600 dark:text-emerald-400",
-  review: "text-amber-600 dark:text-amber-400",
-  problem: "text-red-600 dark:text-red-400",
-  neutral: "",
-};
 
 /**
  * Summary strip (PRD §58, §95): the seven headline figures plus the one-line
@@ -42,12 +35,12 @@ export function SummaryCards({
   const marginDelta =
     atCurrent && target ? atCurrent.contribution.contributionMarginRate.minus(target) : undefined;
 
-  const contributionStatus: Status = atCurrent
+  const contributionTone: StatusTone = atCurrent
     ? atCurrent.contribution.contributionMarginRate.lessThan(0)
-      ? "problem"
+      ? "negative"
       : target && atCurrent.contribution.contributionMarginRate.lessThan(target)
-        ? "review"
-        : "healthy"
+        ? "warning"
+        : "positive"
     : "neutral";
 
   const sentence =
@@ -86,7 +79,24 @@ export function SummaryCards({
         <SummaryCard
           label="Contribution margin"
           value={atCurrent ? formatPercent(atCurrent.contribution.contributionMarginRate) : "—"}
-          status={contributionStatus}
+          tone={contributionTone}
+          hint={
+            marginDelta && (
+              <span
+                className={cn(
+                  "inline-flex items-center gap-0.5 font-mono text-[11px] tabular-nums",
+                  statusText[contributionTone],
+                )}
+              >
+                {marginDelta.isNegative() ? (
+                  <ArrowDown className="size-3" aria-hidden />
+                ) : (
+                  <ArrowUp className="size-3" aria-hidden />
+                )}
+                {formatPercentPoints(marginDelta)} vs target
+              </span>
+            )
+          }
         />
       </div>
 
@@ -97,7 +107,7 @@ export function SummaryCards({
             <span
               className={cn(
                 "font-mono text-xs tabular-nums",
-                STATUS_CLASSES[gap.exceedsSupportedCost ? "problem" : "healthy"],
+                statusText[gap.exceedsSupportedCost ? "negative" : "positive"],
               )}
             >
               Pricing gap {gap.gapPerUnit.isNegative() ? "" : "+"}
@@ -116,12 +126,14 @@ export function SummaryCards({
 function SummaryCard({
   label,
   value,
-  status = "neutral",
+  tone = "neutral",
+  hint,
   trace,
 }: {
   label: string;
   value: string;
-  status?: Status;
+  tone?: StatusTone;
+  hint?: React.ReactNode;
   trace?: CalculationTrace;
 }) {
   return (
@@ -131,9 +143,15 @@ function SummaryCard({
           {label}
           {trace && <TraceButton trace={trace} />}
         </div>
-        <div className={cn("font-mono text-lg font-semibold tabular-nums", STATUS_CLASSES[status])}>
+        <div
+          className={cn(
+            "font-mono text-lg leading-tight font-semibold tabular-nums",
+            statusText[tone],
+          )}
+        >
           {value}
         </div>
+        {hint}
       </CardContent>
     </Card>
   );
