@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Neutral tab glyph: the price-build waterfall motif on the brand green-ink.
+       Deliberately not a brand mark (locked decision 2026-08-12). -->
+  <rect width="32" height="32" rx="7" fill="#225241"/>
+  <rect x="7" y="8" width="18" height="4" rx="1" fill="#ffffff" opacity=".95"/>
+  <rect x="7" y="14" width="13" height="4" rx="1" fill="#ffffff" opacity=".8"/>
+  <rect x="7" y="20" width="8" height="4" rx="1" fill="#ffffff" opacity=".65"/>
+</svg>

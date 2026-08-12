@@ -270,7 +270,7 @@ function LeverRow({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="flex-1">{text}</span>
         {!lever.feasible && (
-          <Badge variant="outline" className="text-[10px] text-muted-foreground">
+          <Badge variant="outline" className="text-[11px] text-muted-foreground">
             not sufficient alone
           </Badge>
         )}

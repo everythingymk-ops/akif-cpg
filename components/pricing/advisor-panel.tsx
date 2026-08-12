@@ -89,7 +89,7 @@ export function AdvisorPanel({
                   className={cn("rounded-lg border px-3 py-2.5", style.border)}
                 >
                   <div className="mb-1.5 flex items-center justify-between gap-2">
-                    <Badge className={cn("text-[10px]", style.badge)}>{style.label}</Badge>
+                    <Badge className={cn("text-[11px]", style.badge)}>{style.label}</Badge>
                     <div className="flex gap-1">
                       <Button
                         variant="ghost"

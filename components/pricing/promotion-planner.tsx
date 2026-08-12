@@ -482,7 +482,7 @@ export function PromotionPlannerDialog({
                 <p className="text-xs leading-relaxed">
                   <Badge
                     className={cn(
-                      "mr-1.5 align-middle text-[10px]",
+                      "mr-1.5 align-middle text-[11px]",
                       band.advisorPriority === "warning" ? "bg-amber-500 text-white" : "bg-muted text-foreground",
                     )}
                   >

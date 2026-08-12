@@ -20,8 +20,7 @@ import {
 } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
-import { BasisSelect, CalculatedValue, MoneyField, PercentField } from "./inputs";
+import { BasisSelect, CalculatedValue, ModeButton, MoneyField, PercentField } from "./inputs";
 
 interface AssumptionsPanelProps {
   assumptions: ScenarioAssumptions;
@@ -30,32 +29,6 @@ interface AssumptionsPanelProps {
   visibility: SectionVisibility;
   onChange: (patch: Partial<ScenarioAssumptions>) => void;
   onOpenPlanner: () => void;
-}
-
-function ModeButton({
-  selected,
-  onClick,
-  children,
-}: {
-  selected: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      aria-pressed={selected}
-      onClick={onClick}
-      className={cn(
-        "rounded-md border px-2 py-1.5 text-xs transition-colors",
-        selected
-          ? "border-blue-400 bg-blue-50/60 font-semibold text-blue-900 dark:border-blue-700 dark:bg-blue-950/40 dark:text-blue-200"
-          : "border-border text-muted-foreground hover:bg-accent/50",
-      )}
-    >
-      {children}
-    </button>
-  );
 }
 
 /**

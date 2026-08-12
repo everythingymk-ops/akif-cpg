@@ -178,7 +178,7 @@ function ChoiceButton({
         {selected && <Check className="size-3.5 shrink-0 text-blue-600 dark:text-blue-400" aria-hidden />}
         <span>{title}</span>
         {badge && (
-          <Badge variant="outline" className="ml-auto text-[10px] text-muted-foreground">
+          <Badge variant="outline" className="ml-auto text-[11px] text-muted-foreground">
             {badge}
           </Badge>
         )}

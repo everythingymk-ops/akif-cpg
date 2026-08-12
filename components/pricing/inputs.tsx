@@ -21,8 +21,8 @@ import { cn } from "@/lib/utils";
  * as percentage points.
  */
 export const EDITABLE_CLASSES = cn(
-  "border-blue-300 bg-blue-50/60 text-blue-950 focus-visible:border-blue-400 focus-visible:ring-blue-400/40",
-  "dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-100",
+  "border-editable-border bg-editable-bg text-editable-ink",
+  "focus-visible:border-editable focus-visible:ring-editable/30",
 );
 
 interface FieldShellProps {
@@ -67,7 +67,7 @@ export function MoneyField({ label, value, onChange, hint }: MoneyFieldProps) {
   return (
     <FieldShell label={label} hint={hint} htmlFor={id}>
       <div className="relative">
-        <span className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center text-sm text-blue-700/70 dark:text-blue-300/70">
+        <span className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center text-sm text-editable/70">
           $
         </span>
         <Input
@@ -102,7 +102,7 @@ export function PercentField({ label, rate, onChange, hint }: PercentFieldProps)
           onChange={(event) => onChange(pointsToRateString(event.target.value))}
           className={cn(EDITABLE_CLASSES, "pr-7 font-mono text-sm tabular-nums")}
         />
-        <span className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-sm text-blue-700/70 dark:text-blue-300/70">
+        <span className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-sm text-editable/70">
           %
         </span>
       </div>
@@ -135,6 +135,33 @@ export function BasisSelect({ label, value, onChange }: BasisSelectProps) {
         </SelectContent>
       </Select>
     </FieldShell>
+  );
+}
+
+/** Small toggle pill for mutually exclusive input modes (selected = editable-blue). */
+export function ModeButton({
+  selected,
+  onClick,
+  children,
+}: {
+  selected: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={selected}
+      onClick={onClick}
+      className={cn(
+        "rounded-md border px-2 py-1.5 text-xs transition-colors",
+        selected
+          ? "border-editable-border bg-editable-bg font-semibold text-editable-ink"
+          : "border-border text-muted-foreground hover:bg-accent/50",
+      )}
+    >
+      {children}
+    </button>
   );
 }
 

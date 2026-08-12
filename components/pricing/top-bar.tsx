@@ -94,14 +94,14 @@ export function TopBar({
         href="/setup"
         className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-8 gap-1 text-xs")}
       >
-        <Plus className="size-3" aria-hidden /> New product
+        <Plus aria-hidden /> New product
       </Link>
 
       <Link
         href="/portfolio"
         className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-8 gap-1 text-xs")}
       >
-        <LayoutGrid className="size-3" aria-hidden /> Portfolio
+        <LayoutGrid aria-hidden /> Portfolio
       </Link>
 
       <Tooltip>
@@ -176,7 +176,7 @@ export function TopBar({
               className="h-8 gap-1 text-xs"
               onClick={profiles.onManage}
             >
-              <Contact className="size-3" aria-hidden /> Profiles
+              <Contact aria-hidden /> Profiles
             </Button>
           }
         />
@@ -221,7 +221,7 @@ export function TopBar({
           <TooltipTrigger
             render={
               <Button variant="outline" size="sm" className="h-8 gap-1 text-xs" onClick={onReset}>
-                <RotateCcw className="size-3" aria-hidden /> Reset
+                <RotateCcw aria-hidden /> Reset
               </Button>
             }
           />
@@ -239,7 +239,7 @@ export function TopBar({
                 className="h-8 gap-1 text-xs"
                 onClick={scenario.onSave}
               >
-                <Save className="size-3" aria-hidden /> Save
+                <Save aria-hidden /> Save
                 {scenario.dirty && <span className="size-1.5 rounded-full bg-amber-400" aria-hidden />}
               </Button>
             }
@@ -260,11 +260,11 @@ export function TopBar({
           onClick={scenario.onCompare}
           disabled={scenario.scenarios.length < 2}
         >
-          <Columns3 className="size-3" aria-hidden /> Compare
+          <Columns3 aria-hidden /> Compare
         </Button>
 
         <Button variant="outline" size="sm" className="h-8 gap-1 text-xs" onClick={scenario.onHistory}>
-          <History className="size-3" aria-hidden /> History
+          <History aria-hidden /> History
         </Button>
 
         <Tooltip>
@@ -278,7 +278,7 @@ export function TopBar({
                   disabled={scenario.onExport === null}
                   onClick={scenario.onExport ?? undefined}
                 >
-                  <Download className="size-3" aria-hidden /> Export
+                  <Download aria-hidden /> Export
                 </Button>
               </span>
             }

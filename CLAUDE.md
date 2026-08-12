@@ -43,7 +43,9 @@ Next.js (App Router) · TypeScript strict · Tailwind CSS · shadcn/ui · Rechar
 
 ## Current state (2026-08-12)
 
-**The MVP is complete and verified: 210 tests green, lint clean, production build passes.** Everything in the §89 MVP list is built except the two auth/organization items, deferred by the locked decision above. Last roadmap commit: `step 11`.
+**The MVP is complete and verified: 210 tests green, lint clean, production build passes.** Everything in the §89 MVP list is built except the two auth/organization items, deferred by the locked decision above. A UI refresh + product-logo phase (steps 12–15) is underway: 12 done, 13–15 pending. Last roadmap commit: `step 12`.
+
+Design tokens (step 12): brand accent is deep green-ink (`--primary` oklch 0.40 0.06 168); status trios `--positive/-soft/-border` etc. and the editable-blue quartet live in `app/globals.css` and are exposed as Tailwind utilities (`text-positive`, `bg-warning-soft`, `border-editable-border`, …). Shared class maps: `components/ui/status.ts`. Chart identity slots `--chart-1..5` + neutral `--chart-6`. Light theme only; the `.dark` block is an unused future seam.
 
 **Running it**
 - `npm run dev` → http://localhost:3000 (development)
@@ -62,7 +64,7 @@ Next.js (App Router) · TypeScript strict · Tailwind CSS · shadcn/ui · Rechar
 - Auth + Supabase migration (PRD §82) — the repository interface is the seam.
 - Model Health Score (§72) is marked optional in the PRD and was not built.
 
-## Roadmap history (all complete)
+## Roadmap history
 
 | Step | Scope | Status |
 |---|---|---|
@@ -78,6 +80,7 @@ Next.js (App Router) · TypeScript strict · Tailwind CSS · shadcn/ui · Rechar
 | 9 | Scenarios: save/duplicate/compare, assumption audit trail, localStorage persistence layer behind repository interface | done (2026-08-12) |
 | 10 | Portfolio screen, retailer & distributor profiles, assumption priority resolution (SKU+customer > customer > SKU > global, §45) | done (2026-08-12) |
 | 11 | CSV/Excel export, seed demo "Example Supplement 60 Count" (§99), full validation pass, polish | done (2026-08-12) |
+| 12 | Design foundation: font wiring fix (Geist actually applies now), green-ink brand palette + status/editable/chart tokens (WCAG + CVD validated), primitive polish (card shadow, green tab underline, dialog scrim), shared `status.ts`/`EmptyState`, waterfall-bars favicon | done (2026-08-12) |
 
 ## Working conventions
 
