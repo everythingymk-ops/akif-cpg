@@ -57,7 +57,7 @@ Design tokens (step 12): brand accent is deep green-ink (`--primary` oklch 0.40 
 - `lib/scenario/` — composition layer between engine and UI: `assumptions` (form state), `computeScenario` (runs the engine once, returns everything a screen draws), `product`, `scenarios` (+ §68 audit diff), `profiles`, `priority` (§45 resolution), `portfolio`, `exportCsv`, `coach`, `format`.
 - `lib/repository/` — persistence boundary. `LocalStorageRepository` today; swapping to Supabase means changing the one instance in `lib/repository/index.ts`.
 - `components/pricing/` — main screen (top bar, summary cards, assumptions panel, four center tabs, Advisor). `components/setup/`, `components/portfolio/`, `components/profiles/`, `components/benchmarks/` — the rest. `components/ui/` — shadcn primitives (Base UI under the hood: use the `render` prop, not `asChild`).
-- `docs/` — PRD, plus two Turkish PDFs (plain-language intro + user guide) and `make-pdfs.py` that generates them.
+- `docs/` — PRD, plus three Turkish PDFs and the scripts that generate them: `make-pdfs.py` (plain-language intro + user guide) and `make-example-guide.py` (landscape "Godiva Sticks örneğiyle" walkthrough built from real screenshots in `docs/guide-shots/`; every figure in it comes from the app's own calculation, so re-shoot the screenshots before changing any number in that script).
 
 **Known deferrals / next candidates**
 - Phase 2 features (PRD §90): promo ROI, advanced trade-spend engine (scanback vs off-invoice vs billback mechanics), promotion calendar view (§48), AI document upload (§91).
