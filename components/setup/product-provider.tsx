@@ -3,7 +3,12 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { repository } from "@/lib/repository";
 import type { ScenarioAssumptions } from "@/lib/scenario/assumptions";
-import { DEMO_PRODUCT, assumptionsForProduct, type ProductSetup } from "@/lib/scenario/product";
+import {
+  DEMO_PRODUCT,
+  assumptionsForProduct,
+  patchProduct,
+  type ProductSetup,
+} from "@/lib/scenario/product";
 import {
   applyScenarioSave,
   createScenario,
@@ -32,6 +37,12 @@ interface ProductContextValue {
   activeProduct: ProductSetup;
   setActiveProductId: (id: string) => void;
   addProduct: (product: ProductSetup) => void;
+  /**
+   * Merge a partial patch into one product (e.g. the logo) and persist.
+   * Scenarios and audit history are untouched. Rejects AFTER rolling state
+   * back when persistence fails (storage quota) — memory must match storage.
+   */
+  updateProduct: (id: string, patch: Partial<Omit<ProductSetup, "id">>) => Promise<void>;
   /** All scenarios across products (portfolio view, PRD §44). */
   scenarios: Scenario[];
   /** Active scenario id per product id. */
@@ -148,6 +159,18 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
         void repository.saveProducts(nextProducts).catch(console.error);
         void repository.saveScenarios(nextScenarios).catch(console.error);
         persistUi(product.id, nextByProduct);
+      },
+
+      updateProduct: async (id, patch) => {
+        const previous = products;
+        const next = patchProduct(products, id, patch);
+        setProducts(next);
+        try {
+          await repository.saveProducts(next);
+        } catch (error) {
+          setProducts(previous);
+          throw error;
+        }
       },
 
       setActiveScenarioId: (id) => {

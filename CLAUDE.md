@@ -43,7 +43,7 @@ Next.js (App Router) · TypeScript strict · Tailwind CSS · shadcn/ui · Rechar
 
 ## Current state (2026-08-12)
 
-**The MVP is complete and verified: 210 tests green, lint clean, production build passes.** Everything in the §89 MVP list is built except the two auth/organization items, deferred by the locked decision above. A UI refresh + product-logo phase (steps 12–15) is underway: 12–14 done, 15 (product logos) pending. Last roadmap commit: `step 14`.
+**The MVP plus the UI-refresh/logo phase (steps 12–15) is complete and verified: 229 tests green, lint clean, production build + static export pass.** Everything in the §89 MVP list is built except the two auth/organization items, deferred by the locked decision above. Last roadmap commit: `step 15`.
 
 Design tokens (step 12): brand accent is deep green-ink (`--primary` oklch 0.40 0.06 168); status trios `--positive/-soft/-border` etc. and the editable-blue quartet live in `app/globals.css` and are exposed as Tailwind utilities (`text-positive`, `bg-warning-soft`, `border-editable-border`, …). Shared class maps: `components/ui/status.ts`. Chart identity slots `--chart-1..5` + neutral `--chart-6`. Light theme only; the `.dark` block is an unused future seam.
 
@@ -83,6 +83,7 @@ Design tokens (step 12): brand accent is deep green-ink (`--primary` oklch 0.40 
 | 12 | Design foundation: font wiring fix (Geist actually applies now), green-ink brand palette + status/editable/chart tokens (WCAG + CVD validated), primitive polish (card shadow, green tab underline, dialog scrim), shared `status.ts`/`EmptyState`, waterfall-bars favicon | done (2026-08-12) |
 | 13 | Screen polish: shared `AppHeader`, grouped top bar, status tokens across summary cards/advisor/portfolio/assumptions/reverse, setup-wizard shell fix + step chips, DialogFooter adoption, empty states | done (2026-08-12) |
 | 14 | Charts on the token palette: styled Recharts tooltip/axes, matrix heatmap fills, semantic allocation colors + real tooltips, waterfall accent + delta chips | done (2026-08-12) |
+| 15 | Product logos: `ProductSetup.logoDataUrl` (version stays 1), client-side downscale/compress (`lib/ui/logo.ts`), `ProductLogo`/`LogoPicker` with monogram fallback, `updateProduct` with quota rollback, wizard + panel + top bar + portfolio wiring, 19 new tests | done (2026-08-12) |
 
 ## Working conventions
 
@@ -99,3 +100,5 @@ Design tokens (step 12): brand accent is deep green-ink (`--primary` oklch 0.40 
 - **Rates are decimal fractions everywhere** (15% → `0.15`); the UI converts to percentage points at the input boundary only (`rateToPointsString` / `pointsToRateString`).
 - **Never round intermediates.** Rounding happens in `lib/scenario/format.ts` at display time; the engine keeps full precision (this is why PRD examples that round each line can differ by a cent).
 - ReportLab's built-in fonts lack ğ/ş/ı/İ — the PDF script embeds Arial/Georgia. Don't drop that.
+- **`PersistedState.version` must stay `1` unless a real migration is added.** `readState` returns null on unknown versions, and the first-run seed then overwrites the user's saved workspace. New fields go in as optional (like `logoDataUrl`).
+- Product logos are data URLs capped at 64K chars (`lib/ui/logo.ts` downscales/compresses on intake) because the whole workspace is one localStorage blob — an oversized value would block every later save. `updateProduct` rolls state back and rethrows on a failed write; `LogoPicker` shows the error inline.

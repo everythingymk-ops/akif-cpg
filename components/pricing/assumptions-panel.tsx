@@ -5,7 +5,7 @@ import { CalendarRange } from "lucide-react";
 import type { ScenarioAssumptions } from "@/lib/scenario/assumptions";
 import { tangibleTradeSpend } from "@/lib/scenario/coach";
 import type { ComputedScenario } from "@/lib/scenario/computeScenario";
-import type { SectionVisibility } from "@/lib/scenario/product";
+import type { ProductSetup, SectionVisibility } from "@/lib/scenario/product";
 import {
   formatMoney,
   formatMoneyWhole,
@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { LogoPicker } from "@/components/ui/product-logo";
 import { statusDot } from "@/components/ui/status";
 import { cn } from "@/lib/utils";
 import { BasisSelect, CalculatedValue, ModeButton, MoneyField, PercentField } from "./inputs";
@@ -31,6 +32,9 @@ interface AssumptionsPanelProps {
   visibility: SectionVisibility;
   onChange: (patch: Partial<ScenarioAssumptions>) => void;
   onOpenPlanner: () => void;
+  /** Live product record — logo edits persist immediately (not scenario state). */
+  product: ProductSetup;
+  onLogoChange: (logoDataUrl: string | undefined) => Promise<void>;
 }
 
 /**
@@ -45,6 +49,8 @@ export function AssumptionsPanel({
   visibility,
   onChange,
   onOpenPlanner,
+  product,
+  onLogoChange,
 }: AssumptionsPanelProps) {
   // §77 nudge: dismissable per session ("Keep X%").
   const [nudgeDismissed, setNudgeDismissed] = useState(false);
@@ -79,8 +85,17 @@ export function AssumptionsPanel({
             <AccordionContent className="space-y-3 pb-3">
               <CalculatedValue label="Product">{assumptions.productName}</CalculatedValue>
               <CalculatedValue label="SKU">{assumptions.sku}</CalculatedValue>
+              <div className="space-y-1">
+                <span className="text-xs text-muted-foreground">Logo</span>
+                <LogoPicker
+                  name={product.basics.name}
+                  logoDataUrl={product.logoDataUrl}
+                  onChange={onLogoChange}
+                />
+              </div>
               <p className="text-xs text-muted-foreground">
-                Edit product identity and COGS mode by creating a product via New product.
+                Edit product identity and COGS mode by creating a product via New product. The
+                logo can be updated here.
               </p>
             </AccordionContent>
           </AccordionItem>

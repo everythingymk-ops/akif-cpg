@@ -141,4 +141,34 @@ describe("LocalStorageRepository", () => {
     expect(await repo.loadState()).toBeNull();
     await expect(repo.saveProducts([DEMO_PRODUCT])).resolves.toBeUndefined();
   });
+
+  it("round-trips a product logo data URL (step 15)", async () => {
+    const repo = new LocalStorageRepository();
+    await repo.saveProducts([{ ...DEMO_PRODUCT, logoDataUrl: "data:image/png;base64,AAAA" }]);
+    const state = await repo.loadState();
+    expect(state?.products[0].logoDataUrl).toBe("data:image/png;base64,AAAA");
+  });
+
+  it("legacy blobs whose products lack logoDataUrl load with it undefined", async () => {
+    const repo = new LocalStorageRepository();
+    const legacyProduct = { ...DEMO_PRODUCT } as Record<string, unknown>;
+    delete legacyProduct.logoDataUrl;
+    (globals.window as { localStorage: Storage }).localStorage.setItem(
+      "akif-cpg/workspace/v1",
+      JSON.stringify({ version: 1, products: [legacyProduct], scenarios: [] }),
+    );
+    const state = await repo.loadState();
+    expect(state?.products[0].logoDataUrl).toBeUndefined();
+    expect(state?.products[0].basics.name).toBe(DEMO_PRODUCT.basics.name);
+  });
+
+  it("saveProducts rejects when the storage write throws (quota)", async () => {
+    const repo = new LocalStorageRepository();
+    const storage = (globals.window as { localStorage: MemoryStorage }).localStorage;
+    storage.setItem = () => {
+      const error = new DOMException("quota exceeded", "QuotaExceededError");
+      throw error;
+    };
+    await expect(repo.saveProducts([DEMO_PRODUCT])).rejects.toThrow("quota exceeded");
+  });
 });

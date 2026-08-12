@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Columns3, Contact, Download, History, LayoutGrid, Plus, RotateCcw, Save } from "lucide-react";
 import { AppHeader } from "@/components/app-header";
 import { Badge } from "@/components/ui/badge";
+import { ProductLogo } from "@/components/ui/product-logo";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Select,
@@ -67,7 +68,7 @@ export function TopBar({
   scenario,
   profiles,
 }: {
-  products: { id: string; name: string }[];
+  products: { id: string; name: string; logoDataUrl?: string }[];
   activeProductId: string;
   onSelectProduct: (id: string) => void;
   routeLabel: string;
@@ -77,6 +78,7 @@ export function TopBar({
 }) {
   const activeScenarioName =
     scenario.scenarios.find((s) => s.id === scenario.activeScenarioId)?.name ?? "No scenario";
+  const activeProduct = products.find((product) => product.id === activeProductId);
 
   return (
     <AppHeader subtitle="Pricing Architect">
@@ -88,13 +90,27 @@ export function TopBar({
       >
         <SelectTrigger size="sm" className="w-[190px] text-xs" aria-label="Product">
           <SelectValue>
-            {products.find((product) => product.id === activeProductId)?.name ?? "Select product"}
+            {activeProduct ? (
+              <span className="flex min-w-0 items-center gap-1.5">
+                <ProductLogo
+                  name={activeProduct.name}
+                  logoDataUrl={activeProduct.logoDataUrl}
+                  size="sm"
+                />
+                <span className="truncate">{activeProduct.name}</span>
+              </span>
+            ) : (
+              "Select product"
+            )}
           </SelectValue>
         </SelectTrigger>
         <SelectContent>
           {products.map((product) => (
             <SelectItem key={product.id} value={product.id}>
-              {product.name}
+              <span className="flex items-center gap-1.5">
+                <ProductLogo name={product.name} logoDataUrl={product.logoDataUrl} size="sm" />
+                {product.name}
+              </span>
             </SelectItem>
           ))}
         </SelectContent>

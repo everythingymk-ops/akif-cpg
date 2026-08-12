@@ -231,6 +231,22 @@ export interface ProductSetup {
   onboarding?: OnboardingAnswers;
   /** Assumption overrides captured at creation (SRP targets, rates, …). */
   assumptionOverrides?: Partial<ScenarioAssumptions>;
+  /**
+   * Browser-processed logo as a data URL (≤64K chars, see lib/ui/logo.ts).
+   * Display-only: never copied into ScenarioAssumptions, audit history, or
+   * CSV export. Optional so pre-logo persisted workspaces load unchanged
+   * (PersistedState version stays 1).
+   */
+  logoDataUrl?: string;
+}
+
+/** Shallow-merge a patch into one product; other products untouched. */
+export function patchProduct(
+  products: ProductSetup[],
+  id: string,
+  patch: Partial<Omit<ProductSetup, "id">>,
+): ProductSetup[] {
+  return products.map((product) => (product.id === id ? { ...product, ...patch } : product));
 }
 
 /** Effective COGS/unit for a product, honoring the selected mode (PRD §6–7). */

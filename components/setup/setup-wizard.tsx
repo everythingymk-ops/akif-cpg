@@ -36,6 +36,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { LogoPicker, ProductLogo } from "@/components/ui/product-logo";
 import {
   Select,
   SelectContent,
@@ -215,6 +216,9 @@ export function SetupWizard() {
 
   // Step 3 — COGS (PRD §6–7).
   const [cogsMode, setCogsMode] = useState<CogsMode>("simple");
+  // Logo lives outside the RHF/zod form like the other non-text step state:
+  // the value is produced asynchronously from a file, not typed.
+  const [logoDataUrl, setLogoDataUrl] = useState<string | undefined>(undefined);
   const [simpleCogsPerUnit, setSimpleCogsPerUnit] = useState("");
   const [components, setComponents] = useState<ComponentRow[]>([
     { localId: 1, name: "", category: "formula", amountPerUnit: "" },
@@ -310,6 +314,7 @@ export function SetupWizard() {
         currentSrpPerUnit: values.currentSrpPerUnit,
         targetSrpPerUnit: values.targetSrpPerUnit,
       },
+      logoDataUrl,
     };
   };
 
@@ -533,6 +538,17 @@ export function SetupWizard() {
                 <TextField form={form} name="targetRetailer" label="Target retailer (optional)" />
                 <TextField form={form} name="currentSrpPerUnit" label="Current SRP (optional)" />
                 <TextField form={form} name="targetSrpPerUnit" label="Target SRP (optional)" />
+                <div className="space-y-1 sm:col-span-2">
+                  <Label className="text-xs text-muted-foreground">Logo (optional)</Label>
+                  <LogoPicker
+                    name={form.getValues("name")}
+                    logoDataUrl={logoDataUrl}
+                    onChange={setLogoDataUrl}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Shown next to the product name across the app. Stored locally in your browser.
+                  </p>
+                </div>
               </div>
               <WizardNav onBack={() => setStep(answers ? 1 : 0)} nextIsSubmit />
             </form>
@@ -685,7 +701,14 @@ export function SetupWizard() {
           <CardContent className="space-y-4 px-5">
             <dl className="grid grid-cols-[160px_1fr] gap-x-4 gap-y-1.5 text-sm">
               <dt className="text-muted-foreground">Product</dt>
-              <dd>{form.getValues("name") || "—"} · {form.getValues("sku") || "—"}</dd>
+              <dd className="flex items-center gap-2">
+                <ProductLogo
+                  name={form.getValues("name")}
+                  logoDataUrl={logoDataUrl}
+                  size="sm"
+                />
+                {form.getValues("name") || "—"} · {form.getValues("sku") || "—"}
+              </dd>
               <dt className="text-muted-foreground">Structure</dt>
               <dd>
                 {BUSINESS_STRUCTURES[structure].code} — {BUSINESS_STRUCTURES[structure].label}

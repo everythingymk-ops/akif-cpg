@@ -84,6 +84,7 @@ function ProductPricingScreen({ product }: { product: ProductSetup }) {
   const {
     products,
     setActiveProductId,
+    updateProduct,
     scenariosForActiveProduct,
     activeScenario,
     setActiveScenarioId,
@@ -256,7 +257,11 @@ function ProductPricingScreen({ product }: { product: ProductSetup }) {
     <TooltipProvider delay={200}>
       <div className="flex min-h-dvh flex-col bg-background">
         <TopBar
-          products={products.map(({ id, basics }) => ({ id, name: basics.name }))}
+          products={products.map(({ id, basics, logoDataUrl }) => ({
+            id,
+            name: basics.name,
+            logoDataUrl,
+          }))}
           activeProductId={product.id}
           onSelectProduct={setActiveProductId}
           routeLabel={`Route ${product.route}: ${CHANNEL_ROUTES[product.route].label}`}
@@ -303,6 +308,8 @@ function ProductPricingScreen({ product }: { product: ProductSetup }) {
               visibility={visibility}
               onChange={update}
               onOpenPlanner={() => setPlannerOpen(true)}
+              product={product}
+              onLogoChange={(logoDataUrl) => updateProduct(product.id, { logoDataUrl })}
             />
             {scenario && (
               <Tabs defaultValue="waterfall" className="min-w-0">

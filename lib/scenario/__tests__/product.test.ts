@@ -5,6 +5,7 @@ import {
   assumptionsForProduct,
   effectiveCogsPerUnit,
   getSectionVisibility,
+  patchProduct,
   suggestSetup,
   type OnboardingAnswers,
   type ProductSetup,
@@ -142,5 +143,30 @@ describe("assumptionsForProduct — PRD §12, §52", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.scenario.requiredSrpPerUnit.toFixed(2)).toBe("18.69");
+  });
+});
+
+describe("patchProduct (step 15)", () => {
+  const other: ProductSetup = { ...DEMO_PRODUCT, id: "other-product" };
+
+  it("shallow-merges the patch into the matching product only", () => {
+    const result = patchProduct([DEMO_PRODUCT, other], DEMO_PRODUCT.id, {
+      logoDataUrl: "data:image/png;base64,AAAA",
+    });
+    expect(result[0].logoDataUrl).toBe("data:image/png;base64,AAAA");
+    expect(result[0].basics).toEqual(DEMO_PRODUCT.basics);
+    expect(result[1]).toBe(other);
+  });
+
+  it("clears a field when patched with undefined", () => {
+    const withLogo = { ...DEMO_PRODUCT, logoDataUrl: "data:image/png;base64,AAAA" };
+    const result = patchProduct([withLogo], withLogo.id, { logoDataUrl: undefined });
+    expect(result[0].logoDataUrl).toBeUndefined();
+    expect(JSON.parse(JSON.stringify(result[0]))).not.toHaveProperty("logoDataUrl");
+  });
+
+  it("is a no-op for an unknown id", () => {
+    const result = patchProduct([DEMO_PRODUCT], "missing", { logoDataUrl: "x" });
+    expect(result[0]).toBe(DEMO_PRODUCT);
   });
 });

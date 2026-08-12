@@ -18,6 +18,7 @@ import { AppHeader } from "@/components/app-header";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { ProductLogo } from "@/components/ui/product-logo";
 import { portfolioTone, statusBadge, statusDot } from "@/components/ui/status";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -172,7 +173,16 @@ export function PortfolioScreen() {
                           onClick={() => openProduct(row.product.id)}
                         >
                           <td className="py-2 pr-2 font-mono">{row.product.basics.sku}</td>
-                          <td className="py-2 pr-2">{row.product.basics.name}</td>
+                          <td className="py-2 pr-2">
+                            <span className="flex items-center gap-1.5">
+                              <ProductLogo
+                                name={row.product.basics.name}
+                                logoDataUrl={row.product.logoDataUrl}
+                                size="sm"
+                              />
+                              {row.product.basics.name}
+                            </span>
+                          </td>
                           <td className="py-2 pr-2 text-muted-foreground">{row.scenarioName}</td>
                           {c ? (
                             <>
