@@ -12,7 +12,7 @@ The user (Yahya) writes in Turkish — respond in Turkish. All code, comments, U
 
 - **Local MVP — no Supabase, no auth, no multi-tenancy for now.** Single user; data persists locally (localStorage behind a thin repository interface, so Supabase/Postgres can replace it later without touching the engine or UI). PRD items requiring auth/org (§82, first two MVP items in §89) are deferred; everything else in the §89 MVP list stands.
 - **English UI.**
-- **Step-by-step delivery.** Follow the roadmap below strictly in order. Finish and verify one step (build passes, all tests green, user has seen the summary) before starting the next. Do not scaffold ahead, do not batch multiple steps into one run unless the user explicitly asks.
+- **Step-by-step delivery.** The 12-step MVP roadmap is complete (see below). For any new multi-step work, keep the same rhythm: agree the steps, finish and verify one before starting the next, don't scaffold ahead.
 
 ## Non-negotiable engineering rules (from the PRD)
 
@@ -41,9 +41,28 @@ Trade-spend math: equivalent weeks 40 + (4×2.0) + (8×1.25) = 58; spend 4×2.0�
 
 Next.js (App Router) · TypeScript strict · Tailwind CSS · shadcn/ui · Recharts · React Hook Form · Zod · Decimal.js · **Vitest** for unit tests. Persistence: localStorage behind a repository interface (MVP). No backend services.
 
-## Roadmap & status
+## Current state (2026-08-12)
 
-Update the Status column when a step is completed and verified. One step per run.
+**The MVP is complete and verified: 210 tests green, lint clean, production build passes.** Everything in the §89 MVP list is built except the two auth/organization items, deferred by the locked decision above. Last roadmap commit: `step 11`.
+
+**Running it**
+- `npm run dev` → http://localhost:3000 (development)
+- Double-click `Akif-CPG-Baslat.command` → serves the static bundle in `out/`, no dev server needed. Rebuild that bundle with `npm run export:static`. Opening `out/index.html` directly via `file://` does **not** work — Chrome blocks scripts from file:// origins.
+- `npm test` · `npm run lint` · `npm run build`
+
+**Where things live**
+- `lib/pricing-engine/` — 17 pure modules, all financial math, Decimal.js, unit-tested. Every result carries a `CalculationTrace` (formula + inputs + steps) that powers the "Show Calculation" dialogs.
+- `lib/scenario/` — composition layer between engine and UI: `assumptions` (form state), `computeScenario` (runs the engine once, returns everything a screen draws), `product`, `scenarios` (+ §68 audit diff), `profiles`, `priority` (§45 resolution), `portfolio`, `exportCsv`, `coach`, `format`.
+- `lib/repository/` — persistence boundary. `LocalStorageRepository` today; swapping to Supabase means changing the one instance in `lib/repository/index.ts`.
+- `components/pricing/` — main screen (top bar, summary cards, assumptions panel, four center tabs, Advisor). `components/setup/`, `components/portfolio/`, `components/profiles/`, `components/benchmarks/` — the rest. `components/ui/` — shadcn primitives (Base UI under the hood: use the `render` prop, not `asChild`).
+- `docs/` — PRD, plus two Turkish PDFs (plain-language intro + user guide) and `make-pdfs.py` that generates them.
+
+**Known deferrals / next candidates**
+- Phase 2 features (PRD §90): promo ROI, advanced trade-spend engine (scanback vs off-invoice vs billback mechanics), promotion calendar view (§48), AI document upload (§91).
+- Auth + Supabase migration (PRD §82) — the repository interface is the seam.
+- Model Health Score (§72) is marked optional in the PRD and was not built.
+
+## Roadmap history (all complete)
 
 | Step | Scope | Status |
 |---|---|---|
@@ -62,7 +81,16 @@ Update the Status column when a step is completed and verified. One step per run
 
 ## Working conventions
 
-- **One step per session/run.** At the end of a step: run the full test suite and a production build, update the roadmap table above, commit (`step N: <what>`), summarize in Turkish for the user, and stop.
-- Tests are written with or before the engine code — never retrofitted after UI work.
+- **Verify before reporting done.** Full test suite + production build, and — when the change is visible in the app — check it in the browser rather than assuming. Several real bugs in this project were caught only that way (a stale closure silently undoing an applied plan; a first-run seed that discarded saved scenarios; relative asset paths 404ing on subroutes).
+- Tests are written with or before engine code — never retrofitted after UI work.
 - Do not add Phase 2 features (PRD §90) unless the user asks.
-- Small, reviewable commits; no pushing anywhere (local repo only).
+- Small, reviewable commits with a body explaining what and why; no pushing anywhere (local repo only).
+- Summarize in Turkish for the user at the end of a piece of work; say plainly what was verified and what wasn't.
+
+### Gotchas worth knowing
+
+- **Synthetic input events don't drive React in the production build.** When testing in the browser, use real typing (`computer` type) — setting `input.value` + dispatching an `input` event works in dev but silently no-ops in the prod bundle.
+- **shadcn components here are Base UI**, not Radix: `TooltipTrigger render={<Button …/>}` instead of `asChild`, `Accordion defaultValue={[...]}` without `type`, `TooltipProvider delay=` not `delayDuration=`.
+- **Rates are decimal fractions everywhere** (15% → `0.15`); the UI converts to percentage points at the input boundary only (`rateToPointsString` / `pointsToRateString`).
+- **Never round intermediates.** Rounding happens in `lib/scenario/format.ts` at display time; the engine keeps full precision (this is why PRD examples that round each line can differ by a cent).
+- ReportLab's built-in fonts lack ğ/ş/ı/İ — the PDF script embeds Arial/Georgia. Don't drop that.
