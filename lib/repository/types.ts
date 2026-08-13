@@ -26,6 +26,13 @@ export interface PersistedState {
   retailerProfiles: RetailerProfile[];
   distributorProfiles: DistributorProfile[];
   portfolioSettings: PortfolioSettings;
+  /**
+   * Ids of the one-time example bundles already delivered to this workspace
+   * (`lib/scenario/seeds.ts`). Recorded so a bundle reaches existing
+   * workspaces exactly once and never reappears after the user deletes it.
+   * Optional so blobs written before this field still load (version stays 1).
+   */
+  appliedSeeds?: string[];
   ui: {
     activeProductId?: string;
     /** Active scenario per product id. */
@@ -47,5 +54,7 @@ export interface AkifRepository {
   saveRetailerProfiles(profiles: RetailerProfile[]): Promise<void>;
   saveDistributorProfiles(profiles: DistributorProfile[]): Promise<void>;
   savePortfolioSettings(settings: PortfolioSettings): Promise<void>;
+  /** Record which one-time example bundles this workspace has received. */
+  saveAppliedSeeds(seedIds: string[]): Promise<void>;
   saveUiState(ui: PersistedState["ui"]): Promise<void>;
 }

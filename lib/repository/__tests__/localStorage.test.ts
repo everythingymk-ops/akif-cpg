@@ -117,6 +117,28 @@ describe("LocalStorageRepository", () => {
     expect(state?.portfolioSettings.redContributionBelow).toBe("0");
   });
 
+  it("round-trips the applied example bundles", async () => {
+    const repo = new LocalStorageRepository();
+    await repo.saveProducts([DEMO_PRODUCT]);
+    await repo.saveAppliedSeeds(["example-profiles-v1"]);
+
+    const state = await repo.loadState();
+    expect(state?.appliedSeeds).toEqual(["example-profiles-v1"]);
+    // The seed record must not disturb the rest of the blob.
+    expect(state?.products).toHaveLength(1);
+  });
+
+  it("blobs written before appliedSeeds existed load as 'no bundle delivered'", async () => {
+    const repo = new LocalStorageRepository();
+    (globals.window as { localStorage: Storage }).localStorage.setItem(
+      "akif-cpg/workspace/v1",
+      JSON.stringify({ version: 1, products: [DEMO_PRODUCT], scenarios: [] }),
+    );
+    const state = await repo.loadState();
+    expect(state?.version).toBe(1);
+    expect(state?.appliedSeeds).toEqual([]);
+  });
+
   it("treats corrupted JSON as first run instead of crashing", async () => {
     const repo = new LocalStorageRepository();
     (globals.window as { localStorage: Storage }).localStorage.setItem(

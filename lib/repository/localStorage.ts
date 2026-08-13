@@ -28,6 +28,7 @@ function emptyState(): PersistedState {
     retailerProfiles: [],
     distributorProfiles: [],
     portfolioSettings: { ...DEFAULT_PORTFOLIO_SETTINGS },
+    appliedSeeds: [],
     ui: {},
   };
 }
@@ -61,6 +62,9 @@ function readState(storage: Storage): PersistedState | null {
         typeof state.portfolioSettings === "object" && state.portfolioSettings !== null
           ? { ...DEFAULT_PORTFOLIO_SETTINGS, ...state.portfolioSettings }
           : { ...DEFAULT_PORTFOLIO_SETTINGS },
+      // Absent in blobs written before example bundles existed: an empty list
+      // means "no bundle delivered yet", which is exactly right for them.
+      appliedSeeds: Array.isArray(state.appliedSeeds) ? state.appliedSeeds : [],
       ui: typeof state.ui === "object" && state.ui !== null ? state.ui : {},
     };
   } catch {
@@ -105,6 +109,10 @@ export class LocalStorageRepository implements AkifRepository {
 
   async savePortfolioSettings(settings: PersistedState["portfolioSettings"]): Promise<void> {
     writePatch({ portfolioSettings: settings });
+  }
+
+  async saveAppliedSeeds(seedIds: string[]): Promise<void> {
+    writePatch({ appliedSeeds: seedIds });
   }
 
   async saveUiState(ui: PersistedState["ui"]): Promise<void> {

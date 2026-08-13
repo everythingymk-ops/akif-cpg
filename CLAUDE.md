@@ -84,6 +84,7 @@ Design tokens (step 12): brand accent is deep green-ink (`--primary` oklch 0.40 
 | 13 | Screen polish: shared `AppHeader`, grouped top bar, status tokens across summary cards/advisor/portfolio/assumptions/reverse, setup-wizard shell fix + step chips, DialogFooter adoption, empty states | done (2026-08-12) |
 | 14 | Charts on the token palette: styled Recharts tooltip/axes, matrix heatmap fills, semantic allocation colors + real tooltips, waterfall accent + delta chips | done (2026-08-12) |
 | 15 | Product logos: `ProductSetup.logoDataUrl` (version stays 1), client-side downscale/compress (`lib/ui/logo.ts`), `ProductLogo`/`LogoPicker` with monogram fallback, `updateProduct` with quota rollback, wizard + panel + top bar + portfolio wiring, 19 new tests | done (2026-08-12) |
+| 16 | Example customer profiles (5 retailers + 3 distributors, `(example)`-suffixed with representative terms) and the one-time delivery mechanism: `PersistedState.appliedSeeds` + `saveAppliedSeeds`, `lib/scenario/seeds.ts` (`mergeSeedRecords`/`needsSeed`), applied on hydration in `ProfilesProvider`; 14 new tests | done (2026-08-13) |
 
 ## Working conventions
 
@@ -100,5 +101,6 @@ Design tokens (step 12): brand accent is deep green-ink (`--primary` oklch 0.40 
 - **Rates are decimal fractions everywhere** (15% → `0.15`); the UI converts to percentage points at the input boundary only (`rateToPointsString` / `pointsToRateString`).
 - **Never round intermediates.** Rounding happens in `lib/scenario/format.ts` at display time; the engine keeps full precision (this is why PRD examples that round each line can differ by a cent).
 - ReportLab's built-in fonts lack ğ/ş/ı/İ — the PDF script embeds Arial/Georgia. Don't drop that.
-- **`PersistedState.version` must stay `1` unless a real migration is added.** `readState` returns null on unknown versions, and the first-run seed then overwrites the user's saved workspace. New fields go in as optional (like `logoDataUrl`).
+- **`PersistedState.version` must stay `1` unless a real migration is added.** `readState` returns null on unknown versions, and the first-run seed then overwrites the user's saved workspace. New fields go in as optional (like `logoDataUrl`, `appliedSeeds`).
+- **Shipped example data is delivered once, not on every load.** Bundles live in `lib/scenario/seeds.ts` with a stable id; the id is written to `PersistedState.appliedSeeds` after delivery, so existing workspaces get it on the next load and deleted examples never come back. `mergeSeedRecords` also keeps a user's edited record when ids collide. Never seed straight into a provider without going through that flag.
 - Product logos are data URLs capped at 64K chars (`lib/ui/logo.ts` downscales/compresses on intake) because the whole workspace is one localStorage blob — an oversized value would block every later save. `updateProduct` rolls state back and rethrows on a failed write; `LogoPicker` shows the error inline.
