@@ -84,7 +84,8 @@ Design tokens (step 12): brand accent is deep green-ink (`--primary` oklch 0.40 
 | 13 | Screen polish: shared `AppHeader`, grouped top bar, status tokens across summary cards/advisor/portfolio/assumptions/reverse, setup-wizard shell fix + step chips, DialogFooter adoption, empty states | done (2026-08-12) |
 | 14 | Charts on the token palette: styled Recharts tooltip/axes, matrix heatmap fills, semantic allocation colors + real tooltips, waterfall accent + delta chips | done (2026-08-12) |
 | 15 | Product logos: `ProductSetup.logoDataUrl` (version stays 1), client-side downscale/compress (`lib/ui/logo.ts`), `ProductLogo`/`LogoPicker` with monogram fallback, `updateProduct` with quota rollback, wizard + panel + top bar + portfolio wiring, 19 new tests | done (2026-08-12) |
-| 16 | Example customer profiles (5 retailers + 3 distributors, `(example)`-suffixed with representative terms) and the one-time delivery mechanism: `PersistedState.appliedSeeds` + `saveAppliedSeeds`, `lib/scenario/seeds.ts` (`mergeSeedRecords`/`needsSeed`), applied on hydration in `ProfilesProvider`; 14 new tests | done (2026-08-13) |
+| 16 | Example customer profiles (5 retailers + 3 distributors, `(example)`-suffixed with representative terms) and the one-time delivery mechanism: `PersistedState.appliedSeeds` + `recordAppliedSeed`, `lib/scenario/seeds.ts` (`mergeSeedRecords`/`needsSeed`), applied on hydration in `ProfilesProvider`; 14 new tests | done (2026-08-13) |
+| 17 | Second example product "Godiva Sticks (example)" — detailed COGS, 3-promotion calendar, opens 6.6 pp below target; real brand logo (`scripts/make-godiva-logo.py` → `lib/scenario/godivaLogo.ts`, 16.5K-char WebP data URL); delivered through the step-16 seed flag from `ProductProvider`; `Importer` gains `brandAndManufacturer`; 8 new tests incl. a guard that the seed still reproduces the printed guide's figures | done (2026-08-13) |
 
 ## Working conventions
 

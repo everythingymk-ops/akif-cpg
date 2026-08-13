@@ -54,7 +54,12 @@ export interface AkifRepository {
   saveRetailerProfiles(profiles: RetailerProfile[]): Promise<void>;
   saveDistributorProfiles(profiles: DistributorProfile[]): Promise<void>;
   savePortfolioSettings(settings: PortfolioSettings): Promise<void>;
-  /** Record which one-time example bundles this workspace has received. */
-  saveAppliedSeeds(seedIds: string[]): Promise<void>;
+  /**
+   * Add one bundle id to the delivered set. Additive on purpose: several
+   * providers seed independently on the same load, and a whole-array write
+   * would let the last one clobber the others' flags — which would silently
+   * re-deliver a bundle the user had deleted. Idempotent.
+   */
+  recordAppliedSeed(seedId: string): Promise<void>;
   saveUiState(ui: PersistedState["ui"]): Promise<void>;
 }

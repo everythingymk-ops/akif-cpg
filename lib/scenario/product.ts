@@ -117,6 +117,12 @@ export type ManufacturingSource =
 export type Importer =
   | "manufacturer"
   | "brand"
+  /**
+   * Split responsibility, common on Türkiye → US lanes: the manufacturer
+   * handles export clearance at origin while the brand's entity is importer
+   * of record at destination, and the two share the landed-cost lines.
+   */
+  | "brandAndManufacturer"
   | "distributor"
   | "retailer"
   | "notImported"

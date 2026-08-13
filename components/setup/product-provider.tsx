@@ -15,6 +15,13 @@ import {
   type AuditEntry,
   type Scenario,
 } from "@/lib/scenario/scenarios";
+import {
+  EXAMPLE_GODIVA_SEED,
+  GODIVA_PRODUCT,
+  GODIVA_SCENARIO,
+  mergeSeedRecords,
+  needsSeed,
+} from "@/lib/scenario/seeds";
 
 /**
  * Workspace store (roadmap step 9): products and their scenarios, persisted
@@ -74,36 +81,61 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
       .loadState()
       .then((state) => {
         if (cancelled) return;
-        if (state === null) {
-          // First run: persist the seed so later partial saves (scenarios,
-          // ui state) merge into a blob that already contains the product.
-          void repository.saveProducts([DEMO_PRODUCT]).catch(console.error);
-          void repository.saveScenarios([SEED_SCENARIO]).catch(console.error);
-          void repository
-            .saveUiState({
-              activeProductId: DEMO_PRODUCT.id,
-              activeScenarioIdByProduct: { [DEMO_PRODUCT.id]: SEED_SCENARIO.id },
-            })
-            .catch(console.error);
-        } else {
-          // Normalize field by field — an empty collection never discards
-          // the others.
-          const loadedProducts = state.products.length > 0 ? state.products : [DEMO_PRODUCT];
-          const loadedScenarios =
-            state.scenarios.length > 0 || state.products.length > 0
-              ? state.scenarios
-              : [SEED_SCENARIO];
-          const activeId =
-            state.ui.activeProductId &&
-            loadedProducts.some((p) => p.id === state.ui.activeProductId)
-              ? state.ui.activeProductId
-              : loadedProducts[0].id;
-          setProducts(loadedProducts);
-          setScenarios(loadedScenarios);
-          setActiveProductIdState(activeId);
-          setActiveScenarioByProduct(state.ui.activeScenarioIdByProduct ?? {});
-        }
+
+        // Normalize field by field — an empty collection never discards the
+        // others. First run starts from the §99 demo product.
+        const baseProducts =
+          state === null || state.products.length === 0 ? [DEMO_PRODUCT] : state.products;
+        const baseScenarios =
+          state === null || (state.scenarios.length === 0 && state.products.length === 0)
+            ? [SEED_SCENARIO]
+            : state.scenarios;
+
+        // One-time delivery of the Godiva example — to first runs and to
+        // workspaces that predate it alike. mergeSeedRecords keeps the user's
+        // own record if the id already exists, and recording the seed id is
+        // what stops a deleted example from reappearing on the next load.
+        const godivaPending = needsSeed(state?.appliedSeeds, EXAMPLE_GODIVA_SEED);
+        const nextProducts = godivaPending
+          ? mergeSeedRecords(baseProducts, [GODIVA_PRODUCT])
+          : baseProducts;
+        const nextScenarios =
+          godivaPending && nextProducts.length !== baseProducts.length
+            ? mergeSeedRecords(baseScenarios, [GODIVA_SCENARIO])
+            : baseScenarios;
+
+        const activeId =
+          state?.ui.activeProductId && nextProducts.some((p) => p.id === state.ui.activeProductId)
+            ? state.ui.activeProductId
+            : nextProducts[0].id;
+        const byProduct = {
+          ...(state?.ui.activeScenarioIdByProduct ?? {
+            [DEMO_PRODUCT.id]: SEED_SCENARIO.id,
+          }),
+          ...(godivaPending ? { [GODIVA_PRODUCT.id]: GODIVA_SCENARIO.id } : {}),
+        };
+
+        setProducts(nextProducts);
+        setScenarios(nextScenarios);
+        setActiveProductIdState(activeId);
+        setActiveScenarioByProduct(byProduct);
         setHydrated(true);
+
+        // Persist on first run (so later partial saves merge into a blob that
+        // already holds the products) and whenever a bundle was just applied.
+        if (state === null || godivaPending) {
+          void repository
+            .saveProducts(nextProducts)
+            .then(() => repository.saveScenarios(nextScenarios))
+            .then(() =>
+              repository.saveUiState({
+                activeProductId: activeId,
+                activeScenarioIdByProduct: byProduct,
+              }),
+            )
+            .then(() => (godivaPending ? repository.recordAppliedSeed(EXAMPLE_GODIVA_SEED) : undefined))
+            .catch((error: unknown) => console.error("Failed to persist workspace seed", error));
+        }
       })
       .catch((error: unknown) => {
         console.error("Failed to load persisted workspace", error);

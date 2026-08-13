@@ -111,8 +111,14 @@ export class LocalStorageRepository implements AkifRepository {
     writePatch({ portfolioSettings: settings });
   }
 
-  async saveAppliedSeeds(seedIds: string[]): Promise<void> {
-    writePatch({ appliedSeeds: seedIds });
+  async recordAppliedSeed(seedId: string): Promise<void> {
+    const storage = getStorage();
+    if (!storage) return;
+    // Read-modify-write the union so concurrent seeders can't drop each
+    // other's flags (writePatch re-reads the blob, so this stays consistent).
+    const applied = (readState(storage) ?? emptyState()).appliedSeeds ?? [];
+    if (applied.includes(seedId)) return;
+    writePatch({ appliedSeeds: [...applied, seedId] });
   }
 
   async saveUiState(ui: PersistedState["ui"]): Promise<void> {

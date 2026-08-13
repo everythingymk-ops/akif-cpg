@@ -120,12 +120,26 @@ describe("LocalStorageRepository", () => {
   it("round-trips the applied example bundles", async () => {
     const repo = new LocalStorageRepository();
     await repo.saveProducts([DEMO_PRODUCT]);
-    await repo.saveAppliedSeeds(["example-profiles-v1"]);
+    await repo.recordAppliedSeed("example-profiles-v1");
 
     const state = await repo.loadState();
     expect(state?.appliedSeeds).toEqual(["example-profiles-v1"]);
     // The seed record must not disturb the rest of the blob.
     expect(state?.products).toHaveLength(1);
+  });
+
+  it("accumulates seed ids instead of replacing them, and is idempotent", async () => {
+    const repo = new LocalStorageRepository();
+    // Two providers seeding on the same load must not drop each other's flag;
+    // losing one would silently re-deliver a bundle the user deleted.
+    await repo.recordAppliedSeed("example-profiles-v1");
+    await repo.recordAppliedSeed("example-godiva-product-v1");
+    await repo.recordAppliedSeed("example-profiles-v1");
+
+    expect((await repo.loadState())?.appliedSeeds).toEqual([
+      "example-profiles-v1",
+      "example-godiva-product-v1",
+    ]);
   });
 
   it("blobs written before appliedSeeds existed load as 'no bundle delivered'", async () => {

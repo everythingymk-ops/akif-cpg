@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
+import { computeScenario } from "../computeScenario";
+import { effectiveCogsPerUnit } from "../product";
 import {
   EXAMPLE_DISTRIBUTOR_PROFILES,
+  EXAMPLE_GODIVA_SEED,
   EXAMPLE_PROFILES_SEED,
   EXAMPLE_RETAILER_PROFILES,
+  GODIVA_PRODUCT,
+  GODIVA_SCENARIO,
   mergeSeedRecords,
   needsSeed,
 } from "../seeds";
@@ -54,6 +59,62 @@ describe("mergeSeedRecords", () => {
     mergeSeedRecords(existing, seeds);
     expect(existing).toHaveLength(1);
     expect(seeds).toHaveLength(2);
+  });
+});
+
+describe("Godiva example product", () => {
+  it("is a bundle of its own, so profiles and product deliver independently", () => {
+    expect(EXAMPLE_GODIVA_SEED).not.toBe(EXAMPLE_PROFILES_SEED);
+  });
+
+  it("sums its detailed COGS components to $1.48", () => {
+    expect(effectiveCogsPerUnit(GODIVA_PRODUCT)).toBe("1.48");
+  });
+
+  it("carries a logo data URL inside the storage budget", () => {
+    expect(GODIVA_PRODUCT.logoDataUrl).toMatch(/^data:image\/(webp|png);base64,/);
+    expect(GODIVA_PRODUCT.logoDataUrl!.length).toBeLessThanOrEqual(64 * 1024);
+  });
+
+  it("ships a Base scenario bound to the product", () => {
+    expect(GODIVA_SCENARIO.productId).toBe(GODIVA_PRODUCT.id);
+    expect(GODIVA_SCENARIO.name).toBe("Base");
+    expect(GODIVA_SCENARIO.history).toEqual([]);
+  });
+
+  /**
+   * These are the figures printed in docs/Akif-CPG-Ornek-Rehber-Godiva-Sticks.pdf.
+   * If this test fails, the seed changed and the guide is now wrong — update
+   * both together (re-shoot the screenshots, rebuild the PDF).
+   */
+  it("reproduces the figures the printed guide is built on", () => {
+    const result = computeScenario(GODIVA_SCENARIO.assumptions);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const { scenario } = result;
+
+    expect(scenario.landed.landedCostPerUnit.toFixed(2)).toBe("2.19");
+    expect(scenario.requiredInvoicePerUnit.toFixed(2)).toBe("3.29");
+    expect(scenario.requiredSrpPerUnit.toFixed(2)).toBe("6.51");
+    expect(scenario.tradeSpend.totalRate.times(100).toFixed(2)).toBe("9.12");
+    expect(scenario.atCurrentSrp).toBeDefined();
+    expect(scenario.atCurrentSrp!.contribution.contributionMarginRate.times(100).toFixed(1)).toBe(
+      "15.4",
+    );
+  });
+
+  it("opens below its contribution target, which is what makes it a teaching example", () => {
+    const result = computeScenario(GODIVA_SCENARIO.assumptions);
+    if (!result.ok) throw new Error(result.error);
+    const target = Number(GODIVA_SCENARIO.assumptions.targetContributionRate);
+    const actual = result.scenario.atCurrentSrp!.contribution.contributionMarginRate.toNumber();
+    expect(actual).toBeLessThan(target);
+    expect(result.scenario.improvement).toBeDefined();
+  });
+
+  it("marks itself as an example without hiding the brand identity", () => {
+    expect(GODIVA_PRODUCT.basics.name).toContain("(example)");
+    expect(GODIVA_PRODUCT.basics.brand).toBe("Godiva");
   });
 });
 

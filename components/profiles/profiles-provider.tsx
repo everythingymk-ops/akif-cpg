@@ -64,9 +64,7 @@ export function ProfilesProvider({ children }: { children: React.ReactNode }) {
         void repository
           .saveDistributorProfiles(nextDistributors)
           .then(() => repository.saveRetailerProfiles(nextRetailers))
-          .then(() =>
-            repository.saveAppliedSeeds([...(state?.appliedSeeds ?? []), EXAMPLE_PROFILES_SEED]),
-          )
+          .then(() => repository.recordAppliedSeed(EXAMPLE_PROFILES_SEED))
           .catch((error: unknown) => console.error("Failed to persist example profiles", error));
       })
       .catch((error: unknown) => {

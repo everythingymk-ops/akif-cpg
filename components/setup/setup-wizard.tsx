@@ -76,6 +76,7 @@ const MANUFACTURING_SOURCES: { value: ManufacturingSource; label: string }[] = [
 const IMPORTERS: { value: Importer; label: string }[] = [
   { value: "manufacturer", label: "Manufacturer" },
   { value: "brand", label: "Brand" },
+  { value: "brandAndManufacturer", label: "Brand + Manufacturer (shared)" },
   { value: "distributor", label: "Distributor" },
   { value: "retailer", label: "Retailer" },
   { value: "notImported", label: "Not imported" },
