@@ -12,6 +12,8 @@ import {
   type CogsComponent,
   type CogsComponentCategory,
 } from "@/lib/pricing-engine";
+import type { TemplateParseResult } from "@/lib/import/parseTemplate";
+import type { ScenarioAssumptions } from "@/lib/scenario/assumptions";
 import { computeScenario } from "@/lib/scenario/computeScenario";
 import { formatMoney } from "@/lib/scenario/format";
 import {
@@ -47,6 +49,7 @@ import {
 import { cn } from "@/lib/utils";
 import { EDITABLE_CLASSES, MoneyField } from "@/components/pricing/inputs";
 import { useProducts } from "./product-provider";
+import { TemplateActions } from "./template-actions";
 
 /**
  * Guided product setup (roadmap step 6): onboarding questionnaire (PRD §4,
@@ -215,6 +218,11 @@ export function SetupWizard() {
   const [route, setRoute] = useState<ChannelRoute>("B");
   const [suggested, setSuggested] = useState<{ structure: BusinessStructure; route: ChannelRoute } | null>(null);
 
+  // Spreadsheet import (step 18): assumptions the template carried beyond the
+  // basics form, plus the report shown on the review step.
+  const [importedOverrides, setImportedOverrides] = useState<Partial<ScenarioAssumptions>>({});
+  const [importSummary, setImportSummary] = useState<TemplateParseResult | null>(null);
+
   // Step 3 — COGS (PRD §6–7).
   const [cogsMode, setCogsMode] = useState<CogsMode>("simple");
   // Logo lives outside the RHF/zod form like the other non-text step state:
@@ -268,6 +276,42 @@ export function SetupWizard() {
     setStep(2);
   };
 
+  /**
+   * Spreadsheet import: fill every step from the file, then drop the user on
+   * Review. Nothing is created here — they still see the model check and the
+   * import notes, and can walk back into any step to correct a value.
+   */
+  const applyImportedTemplate = (result: TemplateParseResult) => {
+    const imported = result.product;
+    if (imported === null) return;
+    const { basics, assumptionOverrides } = imported;
+
+    form.reset({
+      ...basics,
+      currentSrpPerUnit: assumptionOverrides?.currentSrpPerUnit ?? "",
+      targetSrpPerUnit: assumptionOverrides?.targetSrpPerUnit ?? "",
+    });
+    setAnswers(undefined);
+    setSuggested(null);
+    setStructure(imported.structure);
+    setRoute(imported.route);
+    setCogsMode(imported.cogsMode);
+    setSimpleCogsPerUnit(imported.simpleCogsPerUnit);
+    setComponents(
+      imported.cogsComponents.length > 0
+        ? imported.cogsComponents.map((component, index) => ({
+            localId: index + 1,
+            name: component.name,
+            category: component.category,
+            amountPerUnit: String(component.amountPerUnit),
+          }))
+        : [{ localId: 1, name: "", category: "formula", amountPerUnit: "" }],
+    );
+    setImportedOverrides(assumptionOverrides ?? {});
+    setImportSummary(result);
+    setStep(4);
+  };
+
   const detailedCogs = useMemo(() => {
     try {
       const plainComponents = components.map((row) => ({
@@ -312,6 +356,9 @@ export function SetupWizard() {
         })),
       onboarding: answers,
       assumptionOverrides: {
+        // Imported rates first: the two SRP fields are edited on the form, so
+        // whatever the user last typed there wins over the sheet.
+        ...importedOverrides,
         currentSrpPerUnit: values.currentSrpPerUnit,
         targetSrpPerUnit: values.targetSrpPerUnit,
       },
@@ -329,7 +376,7 @@ export function SetupWizard() {
       return { ok: false as const, error: error instanceof Error ? error.message : String(error) };
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- re-check on wizard state
-  }, [step, structure, route, cogsMode, simpleCogsPerUnit, components]);
+  }, [step, structure, route, cogsMode, simpleCogsPerUnit, components, importedOverrides]);
 
   const createProduct = () => {
     const product = buildCandidate(crypto.randomUUID());
@@ -378,6 +425,7 @@ export function SetupWizard() {
             <CardTitle className="text-base">How does your business work?</CardTitle>
           </CardHeader>
           <CardContent className="space-y-5 px-5">
+            <TemplateActions onImport={applyImportedTemplate} />
             <QuestionBlock title="1 — What best describes your company?">
               {COMPANY_TYPES.map((option) => (
                 <ChoiceButton
@@ -700,6 +748,29 @@ export function SetupWizard() {
             <CardTitle className="text-base">Review & create</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 px-5">
+            {importSummary !== null && (
+              <div className="rounded-lg border border-editable-border bg-editable-bg p-3">
+                <p className="text-sm font-medium text-editable-ink">Imported from your spreadsheet</p>
+                <p className="mt-0.5 text-xs text-editable-ink/80">
+                  {importSummary.summary.cogsComponents} COGS line
+                  {importSummary.summary.cogsComponents === 1 ? "" : "s"} ·{" "}
+                  {importSummary.summary.promotions} promotion
+                  {importSummary.summary.promotions === 1 ? "" : "s"} ·{" "}
+                  {importSummary.summary.assumptionsRead} assumption
+                  {importSummary.summary.assumptionsRead === 1 ? "" : "s"}. Check the figures below,
+                  then create the product.
+                </p>
+                {importSummary.issues.length > 0 && (
+                  <ul className="mt-2 space-y-1 border-t border-editable-border pt-2">
+                    {importSummary.issues.map((issue, index) => (
+                      <li key={`${issue.location}-${index}`} className="text-xs text-warning">
+                        <span className="font-medium">{issue.location}</span> — {issue.message}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
             <dl className="grid grid-cols-[160px_1fr] gap-x-4 gap-y-1.5 text-sm">
               <dt className="text-muted-foreground">Product</dt>
               <dd className="flex items-center gap-2">

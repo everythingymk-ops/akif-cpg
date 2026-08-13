@@ -37,6 +37,36 @@ export type PromotionType =
   | "markdownSupport"
   | "other";
 
+/**
+ * Human labels for the promotion mechanics — data, not component strings
+ * (PRD §55), so the planner UI and the spreadsheet template offer exactly the
+ * same vocabulary. Order is the order both surfaces present.
+ */
+export const PROMOTION_TYPE_LABELS: Record<PromotionType, string> = {
+  bogo: "BOGO",
+  bogo50: "BOGO 50%",
+  buy2get1: "Buy 2 Get 1",
+  tpr: "Temporary Price Reduction",
+  offInvoice: "Off Invoice",
+  scanback: "Scanback",
+  featureAd: "Feature Ad",
+  display: "Display",
+  featureAndDisplay: "Feature + Display",
+  introductoryAllowance: "Introductory Allowance",
+  caseAllowance: "Case Allowance",
+  freeFill: "Free Fill",
+  newStoreOpening: "New Store Opening",
+  loyalty: "Loyalty Promotion",
+  digitalCoupon: "Digital Coupon",
+  retailerCoupon: "Retailer Coupon",
+  markdownSupport: "Markdown Support",
+  other: "Other",
+};
+
+export const PROMOTION_TYPES: readonly { value: PromotionType; label: string }[] = (
+  Object.entries(PROMOTION_TYPE_LABELS) as [PromotionType, string][]
+).map(([value, label]) => ({ value, label }));
+
 export interface Promotion {
   id?: string;
   name: string;

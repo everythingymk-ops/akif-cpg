@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import {
+  PROMOTION_TYPES,
   PricingEngineError,
   findTradeSpendBand,
   type Promotion,
@@ -50,27 +51,6 @@ import { EDITABLE_CLASSES } from "./inputs";
  * coach and the §79 BOGO caveat. Nothing touches the model until the user
  * explicitly applies the plan (PRD §40). Mount only while open.
  */
-
-const PROMOTION_TYPES: { value: PromotionType; label: string }[] = [
-  { value: "bogo", label: "BOGO" },
-  { value: "bogo50", label: "BOGO 50%" },
-  { value: "buy2get1", label: "Buy 2 Get 1" },
-  { value: "tpr", label: "Temporary Price Reduction" },
-  { value: "offInvoice", label: "Off Invoice" },
-  { value: "scanback", label: "Scanback" },
-  { value: "featureAd", label: "Feature Ad" },
-  { value: "display", label: "Display" },
-  { value: "featureAndDisplay", label: "Feature + Display" },
-  { value: "introductoryAllowance", label: "Introductory Allowance" },
-  { value: "caseAllowance", label: "Case Allowance" },
-  { value: "freeFill", label: "Free Fill" },
-  { value: "newStoreOpening", label: "New Store Opening" },
-  { value: "loyalty", label: "Loyalty Promotion" },
-  { value: "digitalCoupon", label: "Digital Coupon" },
-  { value: "retailerCoupon", label: "Retailer Coupon" },
-  { value: "markdownSupport", label: "Markdown Support" },
-  { value: "other", label: "Other" },
-];
 
 const LIFT_PRESETS = ["1.0", "1.25", "1.5", "1.75", "2.0", "2.5", "3.0"];
 const BOGO_FAMILY: PromotionType[] = ["bogo", "bogo50", "buy2get1"];
