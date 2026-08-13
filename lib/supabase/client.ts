@@ -36,9 +36,17 @@ export function supabase(): SupabaseClient {
   return client;
 }
 
-/** Internal login addresses, so nobody has to type an email (PRD §82). */
+/**
+ * Internal login addresses, so nobody has to type an email (PRD §82).
+ *
+ * Somebody handed their credentials will often paste the whole address anyway;
+ * appending the domain to that produced `name@akif-cpg.app@akif-cpg.app` and a
+ * login that could never succeed. An input that already looks like an address
+ * is taken as one.
+ */
 export function emailForUsername(username: string): string {
-  return `${username.trim().toLowerCase()}@akif-cpg.app`;
+  const trimmed = username.trim().toLowerCase();
+  return trimmed.includes("@") ? trimmed : `${trimmed}@akif-cpg.app`;
 }
 
 /** The username behind one of those addresses, for display. */
