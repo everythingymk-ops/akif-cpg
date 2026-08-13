@@ -49,7 +49,8 @@ Design tokens (step 12): brand accent is deep green-ink (`--primary` oklch 0.40 
 
 **Running it**
 - `npm run dev` → http://localhost:3000 (development)
-- Double-click `Akif-CPG-Baslat.command` → serves the static bundle in `out/`, no dev server needed. Rebuild that bundle with `npm run export:static`. Opening `out/index.html` directly via `file://` does **not** work — Chrome blocks scripts from file:// origins.
+- Double-click `Akif-CPG-Baslat.command` → serves the static bundle in `out/`. Rebuild it with `npm run export:static`. Opening `out/index.html` via `file://` does **not** work — Chrome blocks scripts from file:// origins. **Since step 21 the app needs internet and a sign-in**: data lives in Supabase, not the browser.
+- Needs `.env.local` (copy `.env.example`) or the app renders a "not connected" screen. See `supabase/README.md`.
 - `npm test` · `npm run lint` · `npm run build`
 
 **Where things live**
@@ -90,6 +91,7 @@ Design tokens (step 12): brand accent is deep green-ink (`--primary` oklch 0.40 
 | 18 | Spreadsheet product template: `lib/import/` (`templateSchema` as the single source for writer + parser, pure `parseTemplate`, exceljs bridge `workbook.ts`), `TemplateActions` in wizard step 1, import prefills every step and lands on Review with a summary + per-cell warnings; 42 new tests incl. a build→read→parse→price round trip | done (2026-08-13) |
 | 19 | Repository goes per-record: `loadWorkspace` + `upsertX`/`deleteX` replace whole-collection writes (`AkifRepository`, `LocalStorageRepository`, all three providers); `lib/scenario/diff.ts` turns the profile dialog's draft-then-save into per-record writes without inferring false deletes; portfolio thresholds debounced. First step of the Supabase phase — still localStorage | done (2026-08-13) |
 | 20 | `supabase/migrations/0001_init.sql` — 9 tables keyed `(workspace_id, id)`, RLS on every one via a `security definer` `is_workspace_member()`, `updated_at` triggers; `supabase/README.md` for project setup (signups off, two accounts, workspace row); `.env.example`. Schema parses under the real Postgres grammar; Supabase-specific bits verified when the project runs it | done (2026-08-13) |
+| 21 | Cloud swap: `lib/supabase/client.ts`, `SupabaseRepository` (per-record contract against Postgres, workspace resolved from membership), `AuthGate` with username→internal-email sign-in and a forced first-login password change, sign-out in `AppHeader`. The app now requires internet + sign-in; offline double-click use is gone | done (2026-08-13) |
 
 ## Working conventions
 

@@ -1,3 +1,4 @@
+import { SignOutButton } from "@/components/auth/auth-gate";
 import { Separator } from "@/components/ui/separator";
 
 /**
@@ -20,6 +21,9 @@ export function AppHeader({
       </div>
       <Separator orientation="vertical" className="mx-1 h-4 data-vertical:self-center max-xl:hidden" />
       {children}
+      <div className="ml-auto">
+        <SignOutButton />
+      </div>
     </header>
   );
 }

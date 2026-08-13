@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { AuthGate } from "@/components/auth/auth-gate";
 import { BenchmarkProvider } from "@/components/benchmarks/benchmark-provider";
 import { ProfilesProvider } from "@/components/profiles/profiles-provider";
 import { ProductProvider } from "@/components/setup/product-provider";
@@ -28,11 +29,15 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <BenchmarkProvider>
-          <ProfilesProvider>
-            <ProductProvider>{children}</ProductProvider>
-          </ProfilesProvider>
-        </BenchmarkProvider>
+        {/* Outside the data providers on purpose: no workspace is fetched
+            until there is a session. */}
+        <AuthGate>
+          <BenchmarkProvider>
+            <ProfilesProvider>
+              <ProductProvider>{children}</ProductProvider>
+            </ProfilesProvider>
+          </BenchmarkProvider>
+        </AuthGate>
       </body>
     </html>
   );
