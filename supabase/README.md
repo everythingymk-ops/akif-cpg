@@ -63,10 +63,11 @@ project URL from the project home page, into `.env.local` at the repo root:
 ```
 NEXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
-NEXT_PUBLIC_SUPABASE_WORKSPACE_ID=<workspace-id>
 ```
 
-The same three go into Vercel's environment variables for the deployed site.
+The same two go into Vercel's environment variables for the deployed site.
+There is no workspace id to configure: the app reads it from the signed-in
+user's membership, so it cannot drift out of sync with the database.
 
 The publishable key is **meant** to be public — it ships inside the browser
 bundle and identifies the project, nothing more. Every row is protected by the
