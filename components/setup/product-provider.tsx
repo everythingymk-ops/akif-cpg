@@ -149,10 +149,12 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
           const newScenarios = nextScenarios.filter(
             (s) => !(state?.scenarios ?? []).some((existing) => existing.id === s.id),
           );
-          void Promise.all([
-            ...newProducts.map((product) => repository.upsertProduct(product)),
-            ...newScenarios.map((scenario) => repository.upsertScenario(scenario)),
-          ])
+          // Products first, then scenarios — the foreign key makes the order
+          // load-bearing, and firing both at once loses the race intermittently.
+          void Promise.all(newProducts.map((product) => repository.upsertProduct(product)))
+            .then(() =>
+              Promise.all(newScenarios.map((scenario) => repository.upsertScenario(scenario))),
+            )
             .then(() =>
               repository.saveUiState({
                 activeProductId: activeId,
@@ -229,9 +231,13 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
         setActiveProductIdState(product.id);
         setActiveScenarioByProduct(nextByProduct);
         // Two rows, not two whole collections: a colleague's product created a
-        // moment ago stays untouched.
-        void repository.upsertProduct(product).catch(console.error);
-        void repository.upsertScenario(scenario).catch(console.error);
+        // moment ago stays untouched. Sequential, not concurrent: scenarios
+        // carry a foreign key to their product, so a scenario that overtakes
+        // its product is rejected by the database.
+        void repository
+          .upsertProduct(product)
+          .then(() => repository.upsertScenario(scenario))
+          .catch((error: unknown) => console.error("Failed to persist new product", error));
         persistUi(product.id, nextByProduct);
       },
 
