@@ -57,22 +57,23 @@ insert into workspace_settings (workspace_id) values ('<workspace-id>');
 
 ## 6. Tell the app where to look
 
-**Project Settings → API**: copy the *Project URL* and the *anon public* key
-into `.env.local` at the repo root:
+**Project Settings → API Keys**: copy the *publishable* key, and take the
+project URL from the project home page, into `.env.local` at the repo root:
 
 ```
 NEXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 NEXT_PUBLIC_SUPABASE_WORKSPACE_ID=<workspace-id>
 ```
 
 The same three go into Vercel's environment variables for the deployed site.
 
-The anon key is **meant** to be public — it ships inside the browser bundle and
-identifies the project, nothing more. Every row is protected by the policies in
-the migration, which is why step 2 matters more than keeping this key secret.
-The *service role* key is the dangerous one: it bypasses row-level security, so
-it must never appear in this repo, in `.env.local`, or in Vercel.
+The publishable key is **meant** to be public — it ships inside the browser
+bundle and identifies the project, nothing more. Every row is protected by the
+policies in the migration, which is why step 2 matters more than keeping this
+key secret. The *secret* key on the same page is the dangerous one: it bypasses
+row-level security, so it must never appear in this repo, in `.env.local`, or
+in Vercel.
 
 ## Checking the policies actually work
 
