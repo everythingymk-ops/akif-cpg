@@ -78,7 +78,7 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     repository
-      .loadState()
+      .loadWorkspace()
       .then((state) => {
         if (cancelled) return;
 
@@ -121,19 +121,29 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
         setActiveScenarioByProduct(byProduct);
         setHydrated(true);
 
-        // Persist on first run (so later partial saves merge into a blob that
-        // already holds the products) and whenever a bundle was just applied.
+        // Persist on first run (so the workspace exists at all) and whenever a
+        // bundle was just applied — writing only the records we just added,
+        // never the whole collection.
         if (state === null || godivaPending) {
-          void repository
-            .saveProducts(nextProducts)
-            .then(() => repository.saveScenarios(nextScenarios))
+          const newProducts = nextProducts.filter(
+            (p) => !(state?.products ?? []).some((existing) => existing.id === p.id),
+          );
+          const newScenarios = nextScenarios.filter(
+            (s) => !(state?.scenarios ?? []).some((existing) => existing.id === s.id),
+          );
+          void Promise.all([
+            ...newProducts.map((product) => repository.upsertProduct(product)),
+            ...newScenarios.map((scenario) => repository.upsertScenario(scenario)),
+          ])
             .then(() =>
               repository.saveUiState({
                 activeProductId: activeId,
                 activeScenarioIdByProduct: byProduct,
               }),
             )
-            .then(() => (godivaPending ? repository.recordAppliedSeed(EXAMPLE_GODIVA_SEED) : undefined))
+            .then(() =>
+              godivaPending ? repository.recordAppliedSeed(EXAMPLE_GODIVA_SEED) : undefined,
+            )
             .catch((error: unknown) => console.error("Failed to persist workspace seed", error));
         }
       })
@@ -181,24 +191,26 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
           assumptionsForProduct(product),
           new Date().toISOString(),
         );
-        const nextProducts = [...products, product];
-        const nextScenarios = [...scenarios, scenario];
         const nextByProduct = { ...activeScenarioByProduct, [product.id]: scenario.id };
-        setProducts(nextProducts);
-        setScenarios(nextScenarios);
+        setProducts([...products, product]);
+        setScenarios([...scenarios, scenario]);
         setActiveProductIdState(product.id);
         setActiveScenarioByProduct(nextByProduct);
-        void repository.saveProducts(nextProducts).catch(console.error);
-        void repository.saveScenarios(nextScenarios).catch(console.error);
+        // Two rows, not two whole collections: a colleague's product created a
+        // moment ago stays untouched.
+        void repository.upsertProduct(product).catch(console.error);
+        void repository.upsertScenario(scenario).catch(console.error);
         persistUi(product.id, nextByProduct);
       },
 
       updateProduct: async (id, patch) => {
         const previous = products;
         const next = patchProduct(products, id, patch);
+        const updated = next.find((p) => p.id === id);
+        if (!updated) return;
         setProducts(next);
         try {
-          await repository.saveProducts(next);
+          await repository.upsertProduct(updated);
         } catch (error) {
           setProducts(previous);
           throw error;
@@ -213,12 +225,14 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
 
       saveActiveScenario: (assumptions, entry) => {
         if (!activeScenario) return;
-        const now = new Date().toISOString();
-        const nextScenarios = scenarios.map((s) =>
-          s.id === activeScenario.id ? applyScenarioSave(s, assumptions, entry, now) : s,
+        const saved = applyScenarioSave(
+          activeScenario,
+          assumptions,
+          entry,
+          new Date().toISOString(),
         );
-        setScenarios(nextScenarios);
-        void repository.saveScenarios(nextScenarios).catch(console.error);
+        setScenarios(scenarios.map((s) => (s.id === saved.id ? saved : s)));
+        void repository.upsertScenario(saved).catch(console.error);
       },
 
       createScenarioForActiveProduct: (name, assumptions) => {
@@ -229,11 +243,10 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
           assumptions,
           new Date().toISOString(),
         );
-        const nextScenarios = [...scenarios, scenario];
         const nextByProduct = { ...activeScenarioByProduct, [activeProduct.id]: scenario.id };
-        setScenarios(nextScenarios);
+        setScenarios([...scenarios, scenario]);
         setActiveScenarioByProduct(nextByProduct);
-        void repository.saveScenarios(nextScenarios).catch(console.error);
+        void repository.upsertScenario(scenario).catch(console.error);
         persistUi(activeProduct.id, nextByProduct);
       },
     };

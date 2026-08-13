@@ -1,7 +1,7 @@
 import { LocalStorageRepository } from "./localStorage";
 import type { AkifRepository } from "./types";
 
-export type { AkifRepository, PersistedState } from "./types";
+export type { AkifRepository, UiState, WorkspaceSnapshot } from "./types";
 export { LocalStorageRepository } from "./localStorage";
 
 /**

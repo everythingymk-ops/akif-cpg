@@ -26,7 +26,7 @@ export function BenchmarkProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     repository
-      .loadState()
+      .loadWorkspace()
       .then((state) => {
         if (cancelled) return;
         if (state && state.tradeSpendBands.length > 0) {
@@ -48,11 +48,11 @@ export function BenchmarkProvider({ children }: { children: React.ReactNode }) {
       tradeSpendBands,
       setTradeSpendBands: (bands) => {
         setBands(bands);
-        void repository.saveTradeSpendBands(bands).catch(console.error);
+        void repository.replaceTradeSpendBands(bands).catch(console.error);
       },
       resetTradeSpendBands: () => {
         setBands(DEFAULT_TRADE_SPEND_BANDS);
-        void repository.saveTradeSpendBands(DEFAULT_TRADE_SPEND_BANDS).catch(console.error);
+        void repository.replaceTradeSpendBands(DEFAULT_TRADE_SPEND_BANDS).catch(console.error);
       },
     }),
     [tradeSpendBands],

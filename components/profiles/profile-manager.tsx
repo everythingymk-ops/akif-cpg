@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import type { MarginBasis } from "@/lib/pricing-engine";
 import type { DistributorProfile, RetailerProfile } from "@/lib/scenario/profiles";
@@ -45,6 +45,11 @@ export function ProfileManagerDialog({ onClose }: { onClose: () => void }) {
   const [distributors, setDistributors] = useState<DistributorProfile[]>(() =>
     distributorProfiles.map((profile) => ({ ...profile })),
   );
+  // The lists as they were when this dialog opened. Save compares against
+  // these, so removing a row here deletes exactly that row — and a profile a
+  // colleague added while the dialog was open is never mistaken for one the
+  // user deleted.
+  const snapshot = useRef({ retailers: retailerProfiles, distributors: distributorProfiles });
 
   const patchRetailer = (id: string, patch: Partial<RetailerProfile>) =>
     setRetailers((previous) => previous.map((p) => (p.id === id ? { ...p, ...patch } : p)));
@@ -52,8 +57,14 @@ export function ProfileManagerDialog({ onClose }: { onClose: () => void }) {
     setDistributors((previous) => previous.map((p) => (p.id === id ? { ...p, ...patch } : p)));
 
   const save = () => {
-    saveRetailerProfiles(retailers.filter((p) => p.name.trim() !== ""));
-    saveDistributorProfiles(distributors.filter((p) => p.name.trim() !== ""));
+    saveRetailerProfiles(
+      retailers.filter((p) => p.name.trim() !== ""),
+      snapshot.current.retailers,
+    );
+    saveDistributorProfiles(
+      distributors.filter((p) => p.name.trim() !== ""),
+      snapshot.current.distributors,
+    );
     onClose();
   };
 

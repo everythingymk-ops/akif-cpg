@@ -1,13 +1,28 @@
-import { DEFAULT_TRADE_SPEND_BANDS } from "@/lib/pricing-engine";
-import { DEFAULT_PORTFOLIO_SETTINGS, type AkifRepository, type PersistedState } from "./types";
+import { DEFAULT_TRADE_SPEND_BANDS, type TradeSpendBand } from "@/lib/pricing-engine";
+import type { ProductSetup } from "@/lib/scenario/product";
+import type { DistributorProfile, RetailerProfile } from "@/lib/scenario/profiles";
+import type { Scenario } from "@/lib/scenario/scenarios";
+import {
+  DEFAULT_PORTFOLIO_SETTINGS,
+  type AkifRepository,
+  type PortfolioSettings,
+  type UiState,
+  type WorkspaceSnapshot,
+} from "./types";
 
 /**
  * localStorage-backed repository (MVP). One namespaced key holds the whole
- * workspace as JSON; partial saves read-modify-write the blob. A future
- * Supabase implementation maps each save* method to its own table.
+ * workspace as JSON; every write read-modify-writes the blob, replacing just
+ * the one record it was given. A future Supabase implementation maps the same
+ * methods to single-row upserts and deletes.
  */
 
 const STORAGE_KEY = "akif-cpg/workspace/v1";
+
+/** The stored blob: the snapshot plus a schema version that never leaves this file. */
+interface PersistedState extends WorkspaceSnapshot {
+  version: 1;
+}
 
 function getStorage(): Storage | null {
   if (typeof window === "undefined") return null;
@@ -80,34 +95,84 @@ function writePatch(patch: Partial<PersistedState>): void {
   storage.setItem(STORAGE_KEY, JSON.stringify({ ...current, ...patch }));
 }
 
+/** Read one collection, apply `change`, write only that collection back. */
+function mutateCollection<K extends keyof PersistedState>(
+  key: K,
+  change: (current: PersistedState[K]) => PersistedState[K],
+): void {
+  const storage = getStorage();
+  if (!storage) return;
+  const current = readState(storage) ?? emptyState();
+  writePatch({ [key]: change(current[key]) } as Partial<PersistedState>);
+}
+
+/** Replace the record sharing this id, or append it when it is new. */
+function upsertById<T extends { id: string }>(collection: T[], record: T): T[] {
+  const index = collection.findIndex((existing) => existing.id === record.id);
+  if (index === -1) return [...collection, record];
+  const next = [...collection];
+  next[index] = record;
+  return next;
+}
+
 export class LocalStorageRepository implements AkifRepository {
-  async loadState(): Promise<PersistedState | null> {
+  async loadWorkspace(): Promise<WorkspaceSnapshot | null> {
     const storage = getStorage();
     if (!storage) return null;
-    return readState(storage);
+    const state = readState(storage);
+    if (state === null) return null;
+    // `version` is a storage detail; the contract above must not carry a field
+    // the Supabase implementation has no equivalent for.
+    const snapshot: WorkspaceSnapshot = {
+      products: state.products,
+      scenarios: state.scenarios,
+      tradeSpendBands: state.tradeSpendBands,
+      retailerProfiles: state.retailerProfiles,
+      distributorProfiles: state.distributorProfiles,
+      portfolioSettings: state.portfolioSettings,
+      appliedSeeds: state.appliedSeeds,
+      ui: state.ui,
+    };
+    return snapshot;
   }
 
-  async saveProducts(products: PersistedState["products"]): Promise<void> {
-    writePatch({ products });
+  async upsertProduct(product: ProductSetup): Promise<void> {
+    mutateCollection("products", (products) => upsertById(products, product));
   }
 
-  async saveScenarios(scenarios: PersistedState["scenarios"]): Promise<void> {
-    writePatch({ scenarios });
+  async deleteProduct(id: string): Promise<void> {
+    mutateCollection("products", (products) => products.filter((p) => p.id !== id));
   }
 
-  async saveTradeSpendBands(bands: PersistedState["tradeSpendBands"]): Promise<void> {
+  async upsertScenario(scenario: Scenario): Promise<void> {
+    mutateCollection("scenarios", (scenarios) => upsertById(scenarios, scenario));
+  }
+
+  async deleteScenario(id: string): Promise<void> {
+    mutateCollection("scenarios", (scenarios) => scenarios.filter((s) => s.id !== id));
+  }
+
+  async upsertRetailerProfile(profile: RetailerProfile): Promise<void> {
+    mutateCollection("retailerProfiles", (profiles) => upsertById(profiles, profile));
+  }
+
+  async deleteRetailerProfile(id: string): Promise<void> {
+    mutateCollection("retailerProfiles", (profiles) => profiles.filter((p) => p.id !== id));
+  }
+
+  async upsertDistributorProfile(profile: DistributorProfile): Promise<void> {
+    mutateCollection("distributorProfiles", (profiles) => upsertById(profiles, profile));
+  }
+
+  async deleteDistributorProfile(id: string): Promise<void> {
+    mutateCollection("distributorProfiles", (profiles) => profiles.filter((p) => p.id !== id));
+  }
+
+  async replaceTradeSpendBands(bands: readonly TradeSpendBand[]): Promise<void> {
     writePatch({ tradeSpendBands: [...bands] });
   }
 
-  async saveRetailerProfiles(profiles: PersistedState["retailerProfiles"]): Promise<void> {
-    writePatch({ retailerProfiles: profiles });
-  }
-
-  async saveDistributorProfiles(profiles: PersistedState["distributorProfiles"]): Promise<void> {
-    writePatch({ distributorProfiles: profiles });
-  }
-
-  async savePortfolioSettings(settings: PersistedState["portfolioSettings"]): Promise<void> {
+  async savePortfolioSettings(settings: PortfolioSettings): Promise<void> {
     writePatch({ portfolioSettings: settings });
   }
 
@@ -116,12 +181,12 @@ export class LocalStorageRepository implements AkifRepository {
     if (!storage) return;
     // Read-modify-write the union so concurrent seeders can't drop each
     // other's flags (writePatch re-reads the blob, so this stays consistent).
-    const applied = (readState(storage) ?? emptyState()).appliedSeeds ?? [];
+    const applied = (readState(storage) ?? emptyState()).appliedSeeds;
     if (applied.includes(seedId)) return;
     writePatch({ appliedSeeds: [...applied, seedId] });
   }
 
-  async saveUiState(ui: PersistedState["ui"]): Promise<void> {
+  async saveUiState(ui: UiState): Promise<void> {
     writePatch({ ui });
   }
 }
