@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { DEFAULT_TRADE_SPEND_BANDS, type TradeSpendBand } from "@/lib/pricing-engine";
 import { repository } from "@/lib/repository";
+import { subscribeToWorkspace } from "@/lib/repository/workspaceSync";
 
 /**
  * Editable benchmark records (PRD §24, §55): planning bands are data the user
@@ -42,6 +43,14 @@ export function BenchmarkProvider({ children }: { children: React.ReactNode }) {
       cancelled = true;
     };
   }, []);
+
+  useEffect(
+    () =>
+      subscribeToWorkspace((snapshot) => {
+        if (snapshot.tradeSpendBands.length > 0) setBands(snapshot.tradeSpendBands);
+      }),
+    [],
+  );
 
   const value = useMemo<BenchmarkContextValue>(
     () => ({

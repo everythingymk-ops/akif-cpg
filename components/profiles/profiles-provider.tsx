@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { repository } from "@/lib/repository";
 import { DEFAULT_PORTFOLIO_SETTINGS, type PortfolioSettings } from "@/lib/repository/types";
+import { subscribeToWorkspace } from "@/lib/repository/workspaceSync";
 import { diffChangedById } from "@/lib/scenario/diff";
 import type { DistributorProfile, RetailerProfile } from "@/lib/scenario/profiles";
 import {
@@ -111,6 +112,16 @@ export function ProfilesProvider({ children }: { children: React.ReactNode }) {
       cancelled = true;
     };
   }, []);
+
+  useEffect(
+    () =>
+      subscribeToWorkspace((snapshot) => {
+        setRetailerProfiles(snapshot.retailerProfiles);
+        setDistributorProfiles(snapshot.distributorProfiles);
+        setPortfolioSettings(snapshot.portfolioSettings);
+      }),
+    [],
+  );
 
   const value = useMemo<ProfilesContextValue>(() => {
     return {

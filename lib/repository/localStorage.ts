@@ -4,6 +4,7 @@ import type { DistributorProfile, RetailerProfile } from "@/lib/scenario/profile
 import type { Scenario } from "@/lib/scenario/scenarios";
 import {
   DEFAULT_PORTFOLIO_SETTINGS,
+  ScenarioConflictError,
   type AkifRepository,
   type PortfolioSettings,
   type UiState,
@@ -144,8 +145,19 @@ export class LocalStorageRepository implements AkifRepository {
     mutateCollection("products", (products) => products.filter((p) => p.id !== id));
   }
 
-  async upsertScenario(scenario: Scenario): Promise<void> {
+  async upsertScenario(
+    scenario: Scenario,
+    expectedUpdatedAt?: string,
+  ): Promise<{ updatedAt: string }> {
+    if (expectedUpdatedAt !== undefined) {
+      const storage = getStorage();
+      const stored = storage
+        ? (readState(storage)?.scenarios ?? []).find((s) => s.id === scenario.id)
+        : undefined;
+      if (stored && stored.updatedAt !== expectedUpdatedAt) throw new ScenarioConflictError();
+    }
     mutateCollection("scenarios", (scenarios) => upsertById(scenarios, scenario));
+    return { updatedAt: scenario.updatedAt };
   }
 
   async deleteScenario(id: string): Promise<void> {

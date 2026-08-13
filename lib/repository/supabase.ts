@@ -5,6 +5,7 @@ import type { Scenario } from "@/lib/scenario/scenarios";
 import { supabase } from "@/lib/supabase/client";
 import {
   DEFAULT_PORTFOLIO_SETTINGS,
+  ScenarioConflictError,
   type AkifRepository,
   type PortfolioSettings,
   type UiState,
@@ -329,8 +330,38 @@ export class SupabaseRepository implements AkifRepository {
     await this.remove("products", id);
   }
 
-  async upsertScenario(scenario: Scenario): Promise<void> {
-    await this.upsert("scenarios", fromScenario(scenario, await this.workspace()));
+  async upsertScenario(
+    scenario: Scenario,
+    expectedUpdatedAt?: string,
+  ): Promise<{ updatedAt: string }> {
+    const workspaceId = await this.workspace();
+    const client = supabase();
+
+    if (expectedUpdatedAt !== undefined) {
+      // Conditional by timestamp, evaluated by Postgres rather than read-then-
+      // write here: matching zero rows means somebody else saved first.
+      const { data, error } = await client
+        .from("scenarios")
+        .update(fromScenario(scenario, workspaceId))
+        .eq("workspace_id", workspaceId)
+        .eq("id", scenario.id)
+        .eq("updated_at", expectedUpdatedAt)
+        .select("updated_at");
+      if (error) throw error;
+      const rows = (data ?? []) as { updated_at: string }[];
+      if (rows.length === 0) throw new ScenarioConflictError();
+      return { updatedAt: rows[0].updated_at };
+    }
+
+    const { data, error } = await client
+      .from("scenarios")
+      .upsert(fromScenario(scenario, workspaceId), { onConflict: "workspace_id,id" })
+      .select("updated_at")
+      .single();
+    if (error) throw error;
+    // The trigger stamps updated_at server-side, so the caller has to adopt
+    // what came back or its next conditional save would look like a conflict.
+    return { updatedAt: (data as { updated_at: string }).updated_at };
   }
 
   async deleteScenario(id: string): Promise<void> {

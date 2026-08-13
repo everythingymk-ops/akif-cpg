@@ -54,6 +54,14 @@ export const DEFAULT_PORTFOLIO_SETTINGS: PortfolioSettings = {
   greenTargetTolerance: "0",
 };
 
+/** Somebody else saved this scenario while it was open here. */
+export class ScenarioConflictError extends Error {
+  constructor() {
+    super("This scenario was changed elsewhere since you opened it.");
+    this.name = "ScenarioConflictError";
+  }
+}
+
 export interface AkifRepository {
   /** Null when nothing was persisted yet (first run) or the data is unreadable. */
   loadWorkspace(): Promise<WorkspaceSnapshot | null>;
@@ -61,7 +69,19 @@ export interface AkifRepository {
   upsertProduct(product: ProductSetup): Promise<void>;
   deleteProduct(id: string): Promise<void>;
 
-  upsertScenario(scenario: Scenario): Promise<void>;
+  /**
+   * Writes a scenario and reports the timestamp it now carries.
+   *
+   * Pass `expectedUpdatedAt` to make the write conditional: if the stored row
+   * has moved on since it was loaded, somebody else saved in the meantime and
+   * this throws `ScenarioConflictError` instead of overwriting their work.
+   * Omit it to overwrite deliberately.
+   *
+   * The returned timestamp must be adopted by the caller — the store decides
+   * it, and a stale local copy would make the *next* save look like a
+   * conflict when it is not.
+   */
+  upsertScenario(scenario: Scenario, expectedUpdatedAt?: string): Promise<{ updatedAt: string }>;
   deleteScenario(id: string): Promise<void>;
 
   upsertRetailerProfile(profile: RetailerProfile): Promise<void>;

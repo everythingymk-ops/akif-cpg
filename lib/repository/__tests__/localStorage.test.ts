@@ -5,6 +5,7 @@ import { DEMO_PRODUCT } from "@/lib/scenario/product";
 import type { RetailerProfile } from "@/lib/scenario/profiles";
 import { createScenario } from "@/lib/scenario/scenarios";
 import { LocalStorageRepository } from "../localStorage";
+import { ScenarioConflictError } from "../types";
 
 /** Minimal in-memory Storage stub — vitest runs in node without a DOM. */
 class MemoryStorage {
@@ -313,5 +314,59 @@ describe("environment failures", () => {
     // The rejection is what makes updateProduct roll back and LogoPicker show
     // its inline error (components/setup/product-provider.tsx).
     await expect(repo.upsertProduct(DEMO_PRODUCT)).rejects.toThrow("quota exceeded");
+  });
+});
+
+describe("conditional scenario writes", () => {
+  const scenarioAt = (updatedAt: string) => ({
+    ...createScenario("s1", DEMO_PRODUCT.id, "Base", DEMO_ASSUMPTIONS, "2026-08-11T10:00:00.000Z"),
+    updatedAt,
+  });
+
+  it("writes when the stored row is where the caller left it", async () => {
+    const repo = new LocalStorageRepository();
+    const first = scenarioAt("2026-08-11T10:00:00.000Z");
+    await repo.upsertScenario(first);
+
+    const second = { ...first, name: "Renamed", updatedAt: "2026-08-11T11:00:00.000Z" };
+    const result = await repo.upsertScenario(second, first.updatedAt);
+
+    expect(result.updatedAt).toBe("2026-08-11T11:00:00.000Z");
+    expect((await repo.loadWorkspace())?.scenarios[0].name).toBe("Renamed");
+  });
+
+  /** The bug this whole mechanism exists to prevent. */
+  it("refuses to overwrite a row somebody else has moved on", async () => {
+    const repo = new LocalStorageRepository();
+    const loaded = scenarioAt("2026-08-11T10:00:00.000Z");
+    await repo.upsertScenario(loaded);
+    // A colleague saves in between.
+    await repo.upsertScenario({ ...loaded, name: "Theirs", updatedAt: "2026-08-11T10:30:00.000Z" });
+
+    await expect(
+      repo.upsertScenario({ ...loaded, name: "Mine" }, loaded.updatedAt),
+    ).rejects.toBeInstanceOf(ScenarioConflictError);
+
+    // Their work is still there — nothing was silently replaced.
+    expect((await repo.loadWorkspace())?.scenarios[0].name).toBe("Theirs");
+  });
+
+  it("overwrites deliberately when no expectation is given", async () => {
+    const repo = new LocalStorageRepository();
+    const loaded = scenarioAt("2026-08-11T10:00:00.000Z");
+    await repo.upsertScenario(loaded);
+    await repo.upsertScenario({ ...loaded, name: "Theirs", updatedAt: "2026-08-11T10:30:00.000Z" });
+
+    await repo.upsertScenario({ ...loaded, name: "Mine", updatedAt: "2026-08-11T11:00:00.000Z" });
+
+    expect((await repo.loadWorkspace())?.scenarios[0].name).toBe("Mine");
+  });
+
+  it("treats a first write of a brand-new scenario as no conflict", async () => {
+    const repo = new LocalStorageRepository();
+    const fresh = scenarioAt("2026-08-11T10:00:00.000Z");
+    await expect(repo.upsertScenario(fresh, fresh.updatedAt)).resolves.toEqual({
+      updatedAt: fresh.updatedAt,
+    });
   });
 });

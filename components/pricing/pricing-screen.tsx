@@ -21,6 +21,7 @@ import { resolveAssumptions, type AssumptionLayer } from "@/lib/scenario/priorit
 import { distributorProfileValues, retailerProfileValues } from "@/lib/scenario/profiles";
 import { buildAuditEntry, type AuditChange } from "@/lib/scenario/scenarios";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useBenchmarks } from "@/components/benchmarks/benchmark-provider";
@@ -89,6 +90,7 @@ function ProductPricingScreen({ product }: { product: ProductSetup }) {
     activeScenario,
     setActiveScenarioId,
     saveActiveScenario,
+    refresh,
     createScenarioForActiveProduct,
   } = useProducts();
   const { tradeSpendBands } = useBenchmarks();
@@ -101,6 +103,7 @@ function ProductPricingScreen({ product }: { product: ProductSetup }) {
   );
   const [plannerOpen, setPlannerOpen] = useState(false);
   const [nameDialog, setNameDialog] = useState<"save" | "duplicate" | null>(null);
+  const [conflict, setConflict] = useState(false);
   const [compareOpen, setCompareOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [profileManagerOpen, setProfileManagerOpen] = useState(false);
@@ -193,7 +196,7 @@ function ProductPricingScreen({ product }: { product: ProductSetup }) {
     return changes;
   };
 
-  const handleSave = () => {
+  const handleSave = async (force = false) => {
     if (!activeScenario) {
       setNameDialog("save");
       return;
@@ -204,7 +207,11 @@ function ProductPricingScreen({ product }: { product: ProductSetup }) {
       new Date().toISOString(),
       buildOutputChanges(),
     );
-    saveActiveScenario(assumptions, entry);
+    const result = await saveActiveScenario(assumptions, entry, force);
+    // A conflict means somebody else saved this scenario while it was open
+    // here. Their work is still in the database and this edit is still on
+    // screen; the user picks which one survives.
+    setConflict(result === "conflict");
   };
 
   // §69: download the working scenario as a CSV Excel opens directly.
@@ -271,7 +278,7 @@ function ProductPricingScreen({ product }: { product: ProductSetup }) {
             activeScenarioId: activeScenario?.id ?? null,
             dirty,
             onSelectScenario: setActiveScenarioId,
-            onSave: handleSave,
+            onSave: () => void handleSave(),
             onDuplicate: () => setNameDialog("duplicate"),
             onCompare: () => setCompareOpen(true),
             onHistory: () => setHistoryOpen(true),
@@ -289,6 +296,34 @@ function ProductPricingScreen({ product }: { product: ProductSetup }) {
         />
 
         <main className="flex flex-1 flex-col gap-3 p-3 lg:p-4">
+          {conflict && (
+            <Alert className="border-warning-border bg-warning-soft">
+              <AlertTitle className="text-warning">
+                Somebody else saved this scenario while you had it open
+              </AlertTitle>
+              <AlertDescription className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                <span className="text-foreground/90">
+                  Nothing was overwritten. Reload to take their version and lose your unsaved
+                  edits, or save anyway to replace it with yours.
+                </span>
+                <span className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setConflict(false);
+                      void refresh();
+                    }}
+                  >
+                    Reload theirs
+                  </Button>
+                  <Button size="sm" onClick={() => void handleSave(true)}>
+                    Save mine anyway
+                  </Button>
+                </span>
+              </AlertDescription>
+            </Alert>
+          )}
           {error !== null && (
             <Alert variant="destructive">
               <TriangleAlert aria-hidden />

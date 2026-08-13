@@ -2,6 +2,13 @@
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { repository } from "@/lib/repository";
+import { ScenarioConflictError } from "@/lib/repository/types";
+import {
+  markWorkspaceLoaded,
+  refreshWorkspace,
+  startWorkspaceAutoRefresh,
+  subscribeToWorkspace,
+} from "@/lib/repository/workspaceSync";
 import type { ScenarioAssumptions } from "@/lib/scenario/assumptions";
 import {
   DEMO_PRODUCT,
@@ -58,8 +65,18 @@ interface ProductContextValue {
   scenariosForActiveProduct: Scenario[];
   activeScenario: Scenario | null;
   setActiveScenarioId: (id: string) => void;
-  /** Save working assumptions into the active scenario with its §68 entry. */
-  saveActiveScenario: (assumptions: ScenarioAssumptions, entry: AuditEntry | null) => void;
+  /**
+   * Save working assumptions into the active scenario with its §68 entry.
+   * Resolves "conflict" when somebody else saved it first — the caller decides
+   * whether to reload or overwrite, `force` does the latter.
+   */
+  saveActiveScenario: (
+    assumptions: ScenarioAssumptions,
+    entry: AuditEntry | null,
+    force?: boolean,
+  ) => Promise<"saved" | "conflict">;
+  /** Re-read the workspace now (after resolving a conflict, say). */
+  refresh: () => Promise<void>;
   /** Create (Save as / Duplicate) a scenario for the active product and activate it. */
   createScenarioForActiveProduct: (name: string, assumptions: ScenarioAssumptions) => void;
 }
@@ -120,6 +137,7 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
         setActiveProductIdState(activeId);
         setActiveScenarioByProduct(byProduct);
         setHydrated(true);
+        markWorkspaceLoaded();
 
         // Persist on first run (so the workspace exists at all) and whenever a
         // bundle was just applied — writing only the records we just added,
@@ -153,6 +171,20 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
       });
     return () => {
       cancelled = true;
+    };
+  }, []);
+
+  // Somebody else's save arrives here: adopt the collections, but never yank
+  // the active selection out from under whoever is looking at the screen.
+  useEffect(() => {
+    const unsubscribe = subscribeToWorkspace((snapshot) => {
+      if (snapshot.products.length > 0) setProducts(snapshot.products);
+      setScenarios(snapshot.scenarios);
+    });
+    const stop = startWorkspaceAutoRefresh();
+    return () => {
+      unsubscribe();
+      stop();
     };
   }, []);
 
@@ -223,17 +255,31 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
         persistUi(activeProduct.id, nextByProduct);
       },
 
-      saveActiveScenario: (assumptions, entry) => {
-        if (!activeScenario) return;
+      saveActiveScenario: async (assumptions, entry, force = false) => {
+        if (!activeScenario) return "saved";
         const saved = applyScenarioSave(
           activeScenario,
           assumptions,
           entry,
           new Date().toISOString(),
         );
-        setScenarios(scenarios.map((s) => (s.id === saved.id ? saved : s)));
-        void repository.upsertScenario(saved).catch(console.error);
+        try {
+          const { updatedAt } = await repository.upsertScenario(
+            saved,
+            force ? undefined : activeScenario.updatedAt,
+          );
+          // Adopt the store's timestamp: keeping our own would make the next
+          // save look like a conflict against a row we just wrote.
+          setScenarios(scenarios.map((s) => (s.id === saved.id ? { ...saved, updatedAt } : s)));
+          return "saved";
+        } catch (error) {
+          if (error instanceof ScenarioConflictError) return "conflict";
+          console.error("Failed to save scenario", error);
+          return "saved";
+        }
       },
+
+      refresh: () => refreshWorkspace(true),
 
       createScenarioForActiveProduct: (name, assumptions) => {
         const scenario = createScenario(
